@@ -1,16 +1,69 @@
+import { FormEvent, useMemo, useState } from "react";
 import { deriveDecision } from "./domain/decision";
-import { seedFamilyPool } from "./data/seedFamilyPool";
+import type { FamilyPoolStatus } from "./domain/familyPool";
+import { createFamilyPoolItem, mergeFamilyPoolItems, normalizeTicker } from "./domain/familyPool";
+import { seedFamilyPool, type SeedStock } from "./data/seedFamilyPool";
 
-const statusLabels = {
+const statusLabels: Record<FamilyPoolStatus, string> = {
   holding: "已持有",
   watching: "观察中",
   researching: "准备研究",
   paused: "暂停跟踪",
-} as const;
+};
+
+const statusOptions: Array<{ value: FamilyPoolStatus; label: string }> = [
+  { value: "holding", label: "已持有" },
+  { value: "watching", label: "观察中" },
+  { value: "researching", label: "准备研究" },
+  { value: "paused", label: "暂停跟踪" },
+];
 
 export function App() {
-  const selected = seedFamilyPool[0];
+  const [familyPool, setFamilyPool] = useState<SeedStock[]>(seedFamilyPool);
+  const [tickerInput, setTickerInput] = useState("");
+  const [statusInput, setStatusInput] = useState<FamilyPoolStatus>("watching");
+  const [tagsInput, setTagsInput] = useState("");
+  const [formError, setFormError] = useState("");
+
+  const selected = familyPool[0];
   const decision = deriveDecision(selected.decisionInput);
+  const mergedPool = useMemo(
+    () =>
+      mergeFamilyPoolItems(familyPool).map((item) => {
+        const fullItem = familyPool.find((stock) => stock.ticker === item.ticker);
+        return fullItem ?? makePendingStock(item.ticker, item.status, item.tags);
+      }),
+    [familyPool],
+  );
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+
+    try {
+      const ticker = normalizeTicker(tickerInput);
+      const tags = splitTags(tagsInput);
+      const pending = makePendingStock(ticker, statusInput, tags);
+      setFamilyPool((current) =>
+        mergeFamilyPoolItems([...current, pending]).map((item) => {
+          const currentMatch = current.find((stock) => stock.ticker === item.ticker);
+          if (currentMatch) {
+            return {
+              ...currentMatch,
+              status: item.status,
+              tags: item.tags,
+            };
+          }
+          return makePendingStock(item.ticker, item.status, item.tags);
+        }),
+      );
+      setTickerInput("");
+      setStatusInput("watching");
+      setTagsInput("");
+    } catch {
+      setFormError("请输入 6 位 A 股代码，例如 600519。");
+    }
+  }
 
   return (
     <main className="app-shell">
@@ -24,10 +77,54 @@ export function App() {
         </div>
         <div className="summary-card">
           <span>当前股票池</span>
-          <strong>{seedFamilyPool.length} 只</strong>
-          <small>Phase 1：本地种子数据</small>
+          <strong>{familyPool.length} 只</strong>
+          <small>Phase 1：本地页面状态</small>
         </div>
       </header>
+
+      <section className="input-panel panel">
+        <div className="section-title">
+          <h2>加入股票</h2>
+          <span>先录入代码，后续同步真实数据</span>
+        </div>
+        <form className="pool-form" onSubmit={handleSubmit}>
+          <label htmlFor="ticker-input">
+            股票代码
+            <input
+              id="ticker-input"
+              placeholder="600519"
+              value={tickerInput}
+              onChange={(event) => setTickerInput(event.target.value)}
+            />
+          </label>
+          <label htmlFor="status-input">
+            状态
+            <select
+              aria-label="状态"
+              id="status-input"
+              value={statusInput}
+              onChange={(event) => setStatusInput(event.target.value as FamilyPoolStatus)}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="tags-input">
+            标签
+            <input
+              id="tags-input"
+              placeholder="红利, 爸爸关注"
+              value={tagsInput}
+              onChange={(event) => setTagsInput(event.target.value)}
+            />
+          </label>
+          <button type="submit">加入家庭股票池</button>
+        </form>
+        {formError ? <p className="form-error">{formError}</p> : null}
+      </section>
 
       <section className="workspace">
         <section className="panel family-pool">
@@ -36,7 +133,7 @@ export function App() {
             <span>状态 + 标签 + 当前结论</span>
           </div>
           <div className="stock-list">
-            {seedFamilyPool.map((stock) => {
+            {mergedPool.map((stock) => {
               const stockDecision = deriveDecision(stock.decisionInput);
               return (
                 <article className="stock-card" key={stock.ticker}>
@@ -87,4 +184,30 @@ export function App() {
       </section>
     </main>
   );
+}
+
+function splitTags(input: string): string[] {
+  return input
+    .split(/[,，\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+function makePendingStock(
+  ticker: string,
+  status: FamilyPoolStatus,
+  tags: string[],
+): SeedStock {
+  return {
+    ...createFamilyPoolItem(ticker, { status, tags }),
+    name: `${ticker} 待同步`,
+    price: 0,
+    dataHealthLabel: "仅已录入代码，等待同步行情、K线和结构数据",
+    decisionInput: {
+      dataHealth: "missing",
+      riskFlags: [],
+      trend: "range",
+      structureSignal: "none",
+    },
+  };
 }
