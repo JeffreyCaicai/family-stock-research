@@ -4,6 +4,7 @@ import { App } from "./App";
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
 });
 
 describe("App", () => {
@@ -34,6 +35,22 @@ describe("App", () => {
     expect(screen.getAllByText("准备研究").length).toBeGreaterThan(0);
     expect(screen.getByText("白酒")).toBeInTheDocument();
     expect(screen.getAllByText("数据不足，暂不下结论").length).toBeGreaterThan(0);
+    expect(screen.getByText("4 只")).toBeInTheDocument();
+  });
+
+  it("keeps a typed ticker after the app mounts again", () => {
+    const { unmount } = render(<App />);
+
+    fireEvent.change(screen.getByLabelText("股票代码"), { target: { value: "600519" } });
+    fireEvent.change(screen.getByLabelText("标签"), {
+      target: { value: "白酒, 爸爸关注" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "加入家庭股票池" }));
+    unmount();
+
+    render(<App />);
+
+    expect(screen.getByText("600519 待同步")).toBeInTheDocument();
     expect(screen.getByText("4 只")).toBeInTheDocument();
   });
 });

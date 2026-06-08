@@ -1,7 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 import { deriveDecision } from "./domain/decision";
 import type { FamilyPoolStatus } from "./domain/familyPool";
-import { createFamilyPoolItem, mergeFamilyPoolItems, normalizeTicker } from "./domain/familyPool";
+import {
+  createFamilyPoolItem,
+  type FamilyPoolItem,
+  mergeFamilyPoolItems,
+  normalizeTicker,
+} from "./domain/familyPool";
+import { loadFamilyPoolItems, saveFamilyPoolItems } from "./data/familyPoolRepository";
 import { seedFamilyPool, type SeedStock } from "./data/seedFamilyPool";
 
 const statusLabels: Record<FamilyPoolStatus, string> = {
@@ -19,7 +25,9 @@ const statusOptions: Array<{ value: FamilyPoolStatus; label: string }> = [
 ];
 
 export function App() {
-  const [familyPool, setFamilyPool] = useState<SeedStock[]>(seedFamilyPool);
+  const [familyPool, setFamilyPool] = useState<SeedStock[]>(() =>
+    hydrateFamilyPool(loadFamilyPoolItems()),
+  );
   const [tickerInput, setTickerInput] = useState("");
   const [statusInput, setStatusInput] = useState<FamilyPoolStatus>("watching");
   const [tagsInput, setTagsInput] = useState("");
@@ -44,19 +52,13 @@ export function App() {
       const ticker = normalizeTicker(tickerInput);
       const tags = splitTags(tagsInput);
       const pending = makePendingStock(ticker, statusInput, tags);
-      setFamilyPool((current) =>
-        mergeFamilyPoolItems([...current, pending]).map((item) => {
-          const currentMatch = current.find((stock) => stock.ticker === item.ticker);
-          if (currentMatch) {
-            return {
-              ...currentMatch,
-              status: item.status,
-              tags: item.tags,
-            };
-          }
-          return makePendingStock(item.ticker, item.status, item.tags);
-        }),
-      );
+      setFamilyPool((current) => {
+        const next = mergeFamilyPoolItems([...current, pending]).map((item) =>
+          toDisplayStock(item, current),
+        );
+        saveFamilyPoolItems(next);
+        return next;
+      });
       setTickerInput("");
       setStatusInput("watching");
       setTagsInput("");
@@ -78,7 +80,7 @@ export function App() {
         <div className="summary-card">
           <span>当前股票池</span>
           <strong>{familyPool.length} 只</strong>
-          <small>Phase 1：本地页面状态</small>
+          <small>Phase 1：本地持久化</small>
         </div>
       </header>
 
@@ -210,4 +212,22 @@ function makePendingStock(
       structureSignal: "none",
     },
   };
+}
+
+function hydrateFamilyPool(savedItems: FamilyPoolItem[]): SeedStock[] {
+  return mergeFamilyPoolItems([...savedItems, ...seedFamilyPool]).map((item) =>
+    toDisplayStock(item, seedFamilyPool),
+  );
+}
+
+function toDisplayStock(item: FamilyPoolItem, source: SeedStock[]): SeedStock {
+  const sourceMatch = source.find((stock) => stock.ticker === item.ticker);
+  if (sourceMatch) {
+    return {
+      ...sourceMatch,
+      status: item.status,
+      tags: item.tags,
+    };
+  }
+  return makePendingStock(item.ticker, item.status, item.tags);
 }
