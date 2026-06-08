@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
+    "sync:fixture": "python3 scripts/sync_market_data.py --provider fixture",
+    "sync:akshare": "python3 scripts/sync_market_data.py --provider akshare",
     "test": "vitest run"
   },
   "dependencies": {

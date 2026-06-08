@@ -1,0 +1,71 @@
+import type { DataSyncSnapshot } from "../domain/dataSync";
+import { normalizeTicker } from "../domain/familyPool";
+import rawMarketSnapshots from "./generated/marketSnapshots.json";
+import type { SeedStock } from "./seedFamilyPool";
+
+export type MarketSnapshot = {
+  ticker: string;
+  dataSync: DataSyncSnapshot;
+  dataHealthLabel?: string;
+  name?: string;
+  price?: number;
+};
+
+export const marketSnapshots: MarketSnapshot[] = normalizeMarketSnapshots(rawMarketSnapshots);
+
+export function applyMarketSnapshots(
+  stocks: SeedStock[],
+  snapshots: MarketSnapshot[] = marketSnapshots,
+): SeedStock[] {
+  const byTicker = new Map(snapshots.map((snapshot) => [normalizeTicker(snapshot.ticker), snapshot]));
+
+  return stocks.map((stock) => {
+    const snapshot = byTicker.get(stock.ticker);
+    if (!snapshot) {
+      return stock;
+    }
+
+    return {
+      ...stock,
+      dataHealthLabel: snapshot.dataHealthLabel ?? stock.dataHealthLabel,
+      dataSync: snapshot.dataSync,
+      name: snapshot.name ?? stock.name,
+      price: snapshot.price ?? stock.price,
+    };
+  });
+}
+
+function normalizeMarketSnapshots(input: unknown): MarketSnapshot[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return input.map(toMarketSnapshot).filter(isMarketSnapshot);
+}
+
+function toMarketSnapshot(input: unknown): MarketSnapshot | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+
+  const candidate = input as Partial<MarketSnapshot>;
+  if (!candidate.ticker || !candidate.dataSync) {
+    return null;
+  }
+
+  try {
+    return {
+      ticker: normalizeTicker(candidate.ticker),
+      dataSync: candidate.dataSync,
+      dataHealthLabel: candidate.dataHealthLabel,
+      name: candidate.name,
+      price: candidate.price,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isMarketSnapshot(value: MarketSnapshot | null): value is MarketSnapshot {
+  return value !== null;
+}

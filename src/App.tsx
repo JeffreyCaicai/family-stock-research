@@ -9,6 +9,7 @@ import {
   normalizeTicker,
 } from "./domain/familyPool";
 import { loadFamilyPoolItems, saveFamilyPoolItems } from "./data/familyPoolRepository";
+import { applyMarketSnapshots } from "./data/marketSnapshots";
 import { seedFamilyPool, type SeedStock } from "./data/seedFamilyPool";
 
 const statusLabels: Record<FamilyPoolStatus, string> = {
@@ -24,6 +25,8 @@ const statusOptions: Array<{ value: FamilyPoolStatus; label: string }> = [
   { value: "researching", label: "准备研究" },
   { value: "paused", label: "暂停跟踪" },
 ];
+
+const syncedSeedFamilyPool = applyMarketSnapshots(seedFamilyPool);
 
 export function App() {
   const [familyPool, setFamilyPool] = useState<SeedStock[]>(() =>
@@ -233,8 +236,8 @@ function makePendingStock(
 }
 
 function hydrateFamilyPool(savedItems: FamilyPoolItem[]): SeedStock[] {
-  return mergeFamilyPoolItems([...savedItems, ...seedFamilyPool]).map((item) =>
-    toDisplayStock(item, seedFamilyPool),
+  return mergeFamilyPoolItems([...savedItems, ...syncedSeedFamilyPool]).map((item) =>
+    toDisplayStock(item, syncedSeedFamilyPool),
   );
 }
 

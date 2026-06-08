@@ -17,8 +17,35 @@
 - 输出数据健康状态。
 - 输出基础结论层。
 
+## 本地开发
+
+```bash
+npm install
+npm run dev
+```
+
+默认本地地址：`http://localhost:5173/`。
+
+## 行情同步
+
+当前已经建立同步快照契约，前端读取 `src/data/generated/marketSnapshots.json`。
+
+离线验证同步管道：
+
+```bash
+npm run sync:fixture
+```
+
+真实 A 股行情同步预留 AKShare 入口，需要本地 Python 环境先安装 `akshare`：
+
+```bash
+pip install akshare
+npm run sync:akshare
+```
+
+注意：fixture 模式只用于验证管道，不代表真实行情；AKShare 接入后仍需继续补日 K、周 K、60 分钟 K、财务和公告数据。
+
 ## 文档
 
 - `docs/product-design.md`：完整产品设计和重构方案。
 - `docs/phase-1-plan.md`：第一阶段开发计划。
-
