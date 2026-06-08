@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { summarizeDataSync } from "./domain/dataSync";
 import { deriveDecision } from "./domain/decision";
 import type { FamilyPoolStatus } from "./domain/familyPool";
 import {
@@ -35,6 +36,7 @@ export function App() {
 
   const selected = familyPool[0];
   const decision = deriveDecision(selected.decisionInput);
+  const selectedSync = summarizeDataSync(selected.dataSync);
   const mergedPool = useMemo(
     () =>
       mergeFamilyPoolItems(familyPool).map((item) => {
@@ -137,6 +139,7 @@ export function App() {
           <div className="stock-list">
             {mergedPool.map((stock) => {
               const stockDecision = deriveDecision(stock.decisionInput);
+              const syncSummary = summarizeDataSync(stock.dataSync);
               return (
                 <article className="stock-card" key={stock.ticker}>
                   <div>
@@ -144,6 +147,11 @@ export function App() {
                     <span>{stock.ticker}</span>
                   </div>
                   <strong>{statusLabels[stock.status]}</strong>
+                  <div className={`sync-status tone-${syncSummary.tone}`}>
+                    <span>同步状态</span>
+                    <strong>{syncSummary.label}</strong>
+                    <small>{syncSummary.meta}</small>
+                  </div>
                   <p>{stockDecision.label}</p>
                   <div className="tag-row">
                     {stock.tags.map((tag) => (
@@ -178,6 +186,11 @@ export function App() {
               <strong>{selected.dataHealthLabel}</strong>
             </div>
             <div>
+              <span>同步状态</span>
+              <strong>{selectedSync.label}</strong>
+              <small>{selectedSync.detail}</small>
+            </div>
+            <div>
               <span>下一步动作</span>
               <strong>进入人工复核，确认仓位和失效位</strong>
             </div>
@@ -205,6 +218,11 @@ function makePendingStock(
     name: `${ticker} 待同步`,
     price: 0,
     dataHealthLabel: "仅已录入代码，等待同步行情、K线和结构数据",
+    dataSync: {
+      state: "pending",
+      source: "AKShare",
+      detail: "等待同步行情、K线、财务和公告",
+    },
     decisionInput: {
       dataHealth: "missing",
       riskFlags: [],

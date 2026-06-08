@@ -1,3 +1,4 @@
+import type { DataSyncSnapshot } from "../domain/dataSync";
 import type { DecisionInput } from "../domain/decision";
 import type { FamilyPoolItem } from "../domain/familyPool";
 import { createFamilyPoolItem } from "../domain/familyPool";
@@ -6,6 +7,7 @@ export type SeedStock = FamilyPoolItem & {
   name: string;
   price: number;
   dataHealthLabel: string;
+  dataSync: DataSyncSnapshot;
   decisionInput: DecisionInput;
 };
 
@@ -15,6 +17,11 @@ export const seedFamilyPool: SeedStock[] = [
     name: "海光信息",
     price: 274.06,
     dataHealthLabel: "行情、日线、周线、60 分钟线可用",
+    dataSync: {
+      state: "sample",
+      source: "本地种子数据",
+      detail: "用于验证分析流程，等待接入真实行情同步",
+    },
     decisionInput: {
       dataHealth: "ready",
       riskFlags: [],
@@ -27,6 +34,11 @@ export const seedFamilyPool: SeedStock[] = [
     name: "深南电路",
     price: 399.13,
     dataHealthLabel: "行情和日线可用，等待更多财务复核",
+    dataSync: {
+      state: "sample",
+      source: "本地种子数据",
+      detail: "用于验证分析流程，等待接入真实行情同步",
+    },
     decisionInput: {
       dataHealth: "ready",
       riskFlags: [],
@@ -39,6 +51,11 @@ export const seedFamilyPool: SeedStock[] = [
     name: "芯碁微装",
     price: 356.01,
     dataHealthLabel: "行情可用，风险结构需复盘",
+    dataSync: {
+      state: "sample",
+      source: "本地种子数据",
+      detail: "用于验证分析流程，等待接入真实行情同步",
+    },
     decisionInput: {
       dataHealth: "ready",
       riskFlags: ["出现风险卖点候选"],

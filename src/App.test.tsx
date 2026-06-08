@@ -17,6 +17,8 @@ describe("App", () => {
     expect(screen.getAllByText("688041").length).toBeGreaterThan(0);
     expect(screen.getAllByText("已持有").length).toBeGreaterThan(0);
     expect(screen.getByText("数据健康")).toBeInTheDocument();
+    expect(screen.getAllByText("同步状态").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("样例数据").length).toBeGreaterThan(0);
     expect(screen.getAllByText("可小仓试探").length).toBeGreaterThan(0);
   });
 
@@ -34,6 +36,7 @@ describe("App", () => {
     expect(screen.getAllByText("600519").length).toBeGreaterThan(0);
     expect(screen.getAllByText("准备研究").length).toBeGreaterThan(0);
     expect(screen.getByText("白酒")).toBeInTheDocument();
+    expect(screen.getAllByText("待同步").length).toBeGreaterThan(0);
     expect(screen.getAllByText("数据不足，暂不下结论").length).toBeGreaterThan(0);
     expect(screen.getByText("4 只")).toBeInTheDocument();
   });

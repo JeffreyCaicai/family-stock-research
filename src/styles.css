@@ -177,6 +177,42 @@ select {
   color: #155eef;
 }
 
+.sync-status {
+  background: #f8fafc;
+  border: 1px solid #e5eaf1;
+  border-left: 4px solid #9aa4b2;
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+}
+
+.sync-status strong {
+  font-size: 15px;
+}
+
+.sync-status small {
+  color: #657184;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sync-status.tone-pending {
+  border-left-color: #f59e0b;
+}
+
+.sync-status.tone-synced {
+  border-left-color: #087443;
+}
+
+.sync-status.tone-failed {
+  border-left-color: #b42318;
+}
+
+.sync-status.tone-sample {
+  border-left-color: #667085;
+}
+
 .stock-card p,
 .decision-card p {
   line-height: 1.55;
@@ -220,7 +256,7 @@ select {
 .metric-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .metric-grid div {
@@ -233,6 +269,12 @@ select {
 
 .metric-grid strong {
   line-height: 1.4;
+}
+
+.metric-grid small {
+  color: #657184;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 @media (max-width: 920px) {
