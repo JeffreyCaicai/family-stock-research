@@ -1,11 +1,38 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { saveFamilyPoolToApi } from "./familyPoolApi";
+import { loadFamilyPoolFromApi, saveFamilyPoolToApi } from "./familyPoolApi";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("saveFamilyPoolToApi", () => {
+  it("loads normalized family pool items from the local API", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            { ticker: "sh688041", status: "holding", tags: ["AI", "AI"] },
+            { ticker: "002916", status: "bad", tags: ["PCB"] },
+          ],
+        }),
+      }),
+    );
+
+    await expect(loadFamilyPoolFromApi()).resolves.toEqual([
+      { ticker: "002916", status: "watching", tags: ["PCB"] },
+      { ticker: "688041", status: "holding", tags: ["AI"] },
+    ]);
+  });
+
+  it("returns null when the local API cannot be loaded", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    await expect(loadFamilyPoolFromApi()).resolves.toBeNull();
+  });
+
   it("sends normalized family pool items to the local API", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchSpy);

@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { summarizeDataSync } from "./domain/dataSync";
 import { deriveDecision } from "./domain/decision";
 import type { FamilyPoolStatus } from "./domain/familyPool";
@@ -8,7 +8,7 @@ import {
   mergeFamilyPoolItems,
   normalizeTicker,
 } from "./domain/familyPool";
-import { saveFamilyPoolToApi } from "./data/familyPoolApi";
+import { loadFamilyPoolFromApi, saveFamilyPoolToApi } from "./data/familyPoolApi";
 import { loadFamilyPoolItems, saveFamilyPoolItems } from "./data/familyPoolRepository";
 import { applyMarketSnapshots } from "./data/marketSnapshots";
 import { seedFamilyPool, type SeedStock } from "./data/seedFamilyPool";
@@ -37,6 +37,24 @@ export function App() {
   const [statusInput, setStatusInput] = useState<FamilyPoolStatus>("watching");
   const [tagsInput, setTagsInput] = useState("");
   const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadFamilyPoolFromApi().then((apiItems) => {
+      if (cancelled || !apiItems) {
+        return;
+      }
+
+      const next = hydrateFamilyPool(apiItems);
+      setFamilyPool(next);
+      saveFamilyPoolItems(next);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selected = familyPool[0];
   const decision = deriveDecision(selected.decisionInput);

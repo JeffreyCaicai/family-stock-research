@@ -6,6 +6,7 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("App", () => {
@@ -74,5 +75,25 @@ describe("App", () => {
       expect.objectContaining({ method: "PUT" }),
     );
     expect(screen.getByText("600519 待同步")).toBeInTheDocument();
+  });
+
+  it("loads family pool items from the local file API on startup", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            { ticker: "600519", status: "researching", tags: ["白酒", "爸爸关注"] },
+          ],
+        }),
+      }),
+    );
+
+    render(<App />);
+
+    expect((await screen.findAllByText("600519 待同步")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("准备研究").length).toBeGreaterThan(0);
+    expect(screen.getByText("白酒")).toBeInTheDocument();
   });
 });

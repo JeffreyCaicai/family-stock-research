@@ -1,7 +1,26 @@
-import type { FamilyPoolItem } from "../domain/familyPool";
-import { mergeFamilyPoolItems } from "../domain/familyPool";
+import type { FamilyPoolItem, FamilyPoolStatus } from "../domain/familyPool";
+import { createFamilyPoolItem, mergeFamilyPoolItems } from "../domain/familyPool";
 
 export const FAMILY_POOL_API_URL = "http://localhost:8787/api/family-pool";
+
+export async function loadFamilyPoolFromApi(): Promise<FamilyPoolItem[] | null> {
+  if (typeof fetch === "undefined") {
+    return null;
+  }
+
+  try {
+    const response = await fetch(FAMILY_POOL_API_URL);
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json();
+    const items = Array.isArray(payload) ? payload : payload.items;
+    return toApiItems(items ?? []);
+  } catch {
+    return null;
+  }
+}
 
 export async function saveFamilyPoolToApi(items: FamilyPoolItem[]): Promise<boolean> {
   if (typeof fetch === "undefined") {
@@ -20,12 +39,37 @@ export async function saveFamilyPoolToApi(items: FamilyPoolItem[]): Promise<bool
   }
 }
 
-function toApiItems(items: FamilyPoolItem[]): FamilyPoolItem[] {
-  return mergeFamilyPoolItems(items)
+type ApiFamilyPoolItem = {
+  ticker: string;
+  status?: unknown;
+  tags?: unknown;
+};
+
+function toApiItems(items: ApiFamilyPoolItem[]): FamilyPoolItem[] {
+  return mergeFamilyPoolItems(items.map(toFamilyPoolItem))
     .map((item) => ({
       ticker: item.ticker,
       status: item.status,
       tags: item.tags,
     }))
     .sort((left, right) => left.ticker.localeCompare(right.ticker));
+}
+
+function toFamilyPoolItem(item: ApiFamilyPoolItem): FamilyPoolItem {
+  return createFamilyPoolItem(item.ticker, {
+    status: normalizeStatus(item.status),
+    tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
+  });
+}
+
+function normalizeStatus(status: unknown): FamilyPoolStatus {
+  if (
+    status === "holding" ||
+    status === "watching" ||
+    status === "researching" ||
+    status === "paused"
+  ) {
+    return status;
+  }
+  return "watching";
 }
