@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { summarizeDataSync } from "./domain/dataSync";
 import { deriveDecision } from "./domain/decision";
 import type { FamilyPoolStatus } from "./domain/familyPool";
+import { deriveOperationPlan } from "./domain/operationPlan";
 import {
   createFamilyPoolItem,
   type FamilyPoolItem,
@@ -61,6 +62,12 @@ export function App() {
   const decision = deriveDecision(selected.decisionInput);
   const selectedSync = summarizeDataSync(selected.dataSync);
   const selectedStructure = selected.structureAnalysis;
+  const operationPlan = deriveOperationPlan({
+    decision,
+    price: selected.price,
+    status: selected.status,
+    structure: selectedStructure,
+  });
   const mergedPool = useMemo(
     () =>
       mergeFamilyPoolItems(familyPool).map((item) => {
@@ -250,6 +257,36 @@ export function App() {
             <p className="structure-summary">
               {selectedStructure?.summary ?? "结构数据尚未完整，先同步日线、周线和 60 分钟线。"}
             </p>
+          </section>
+
+          <section className="operation-panel">
+            <div className="section-title compact">
+              <h2>家庭操作建议</h2>
+              <span>动作 · 条件 · 纪律</span>
+            </div>
+            <div className={`operation-action tone-${operationPlan.tone}`}>
+              <span>当前动作</span>
+              <strong>{operationPlan.primaryAction}</strong>
+            </div>
+            <div className="operation-grid">
+              <div>
+                <span>触发条件</span>
+                <p>{operationPlan.trigger}</p>
+              </div>
+              <div>
+                <span>失效条件</span>
+                <p>{operationPlan.invalidation}</p>
+              </div>
+              <div>
+                <span>仓位纪律</span>
+                <p>{operationPlan.positionRule}</p>
+              </div>
+            </div>
+            <ul className="operation-checklist">
+              {operationPlan.checklist.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </section>
         </section>
       </section>

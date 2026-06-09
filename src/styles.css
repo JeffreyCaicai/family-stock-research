@@ -281,6 +281,7 @@ select {
   line-height: 1.45;
 }
 
+.operation-panel,
 .structure-panel {
   border-top: 1px solid #d9e0ea;
   display: grid;
@@ -325,6 +326,59 @@ select {
   margin: 0;
 }
 
+.operation-action {
+  border: 1px solid #d9e0ea;
+  border-left: 5px solid #155eef;
+  border-radius: 10px;
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.operation-action span,
+.operation-grid span {
+  color: #657184;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.operation-action strong {
+  font-size: 24px;
+}
+
+.operation-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.operation-grid div {
+  background: #f8fafc;
+  border: 1px solid #e5eaf1;
+  border-radius: 10px;
+  display: grid;
+  gap: 8px;
+  min-height: 128px;
+  padding: 14px;
+}
+
+.operation-grid p {
+  color: #344054;
+  font-weight: 750;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.operation-checklist {
+  color: #344054;
+  display: grid;
+  font-weight: 750;
+  gap: 8px;
+  line-height: 1.5;
+  margin: 0;
+  padding-left: 20px;
+}
+
 @media (max-width: 920px) {
   .app-shell {
     padding: 20px;
@@ -333,6 +387,7 @@ select {
   .hero,
   .workspace,
   .metric-grid,
+  .operation-grid,
   .structure-grid,
   .pool-form {
     grid-template-columns: 1fr;

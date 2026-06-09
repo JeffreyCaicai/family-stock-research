@@ -106,4 +106,15 @@ describe("App", () => {
     expect(screen.getByText("中枢区间")).toBeInTheDocument();
     expect(screen.getByText("风险卖点")).toBeInTheDocument();
   });
+
+  it("shows a concrete family operation plan for the selected stock", () => {
+    render(<App />);
+
+    expect(screen.getByText("家庭操作建议")).toBeInTheDocument();
+    expect(screen.getByText("当前动作")).toBeInTheDocument();
+    expect(screen.getAllByText("可小仓试探").length).toBeGreaterThan(0);
+    expect(screen.getByText("触发条件")).toBeInTheDocument();
+    expect(screen.getByText("失效条件")).toBeInTheDocument();
+    expect(screen.getByText("仓位纪律")).toBeInTheDocument();
+  });
 });
