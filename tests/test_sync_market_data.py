@@ -1,8 +1,10 @@
 import importlib.util
 import json
+import types
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "sync_market_data.py"
@@ -140,6 +142,21 @@ class SyncMarketDataTest(unittest.TestCase):
         self.assertEqual(snapshots[0]["decisionInput"]["structureSignal"], "second_buy_candidate")
         self.assertEqual(snapshots[0]["structureAnalysis"]["buyPointLabel"], "二买候选")
         self.assertIn("中枢", snapshots[0]["structureAnalysis"]["summary"])
+
+    def test_akshare_provider_returns_failed_snapshots_when_spot_fetch_fails(self):
+        fake_akshare = types.SimpleNamespace(
+            stock_zh_a_spot_em=lambda: (_ for _ in ()).throw(RuntimeError("proxy down"))
+        )
+
+        with patch.dict("sys.modules", {"akshare": fake_akshare}):
+            snapshots = sync_market_data.sync_from_akshare(["688041", "600519"])
+
+        self.assertEqual([snapshot["ticker"] for snapshot in snapshots], ["688041", "600519"])
+        self.assertEqual(snapshots[0]["dataSync"]["state"], "failed")
+        self.assertEqual(snapshots[0]["dataSync"]["source"], "AKShare")
+        self.assertIn("proxy down", snapshots[0]["dataSync"]["detail"])
+        self.assertEqual(snapshots[0]["decisionInput"]["dataHealth"], "missing")
+        self.assertIsNone(snapshots[0]["structureAnalysis"])
 
 
 def make_bars(closes):

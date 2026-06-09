@@ -12,7 +12,7 @@ export type MarketSnapshot = {
   decisionInput?: DecisionInput;
   name?: string;
   price?: number;
-  structureAnalysis?: TechnicalStructureAnalysis;
+  structureAnalysis?: TechnicalStructureAnalysis | null;
 };
 
 export const marketSnapshots: MarketSnapshot[] = normalizeMarketSnapshots(rawMarketSnapshots);
@@ -29,15 +29,19 @@ export function applyMarketSnapshots(
       return stock;
     }
 
-    return {
+    const next: SeedStock = {
       ...stock,
       dataHealthLabel: snapshot.dataHealthLabel ?? stock.dataHealthLabel,
       dataSync: snapshot.dataSync,
       decisionInput: snapshot.decisionInput ?? stock.decisionInput,
       name: snapshot.name ?? stock.name,
       price: snapshot.price ?? stock.price,
-      structureAnalysis: snapshot.structureAnalysis ?? stock.structureAnalysis,
+      structureAnalysis:
+        "structureAnalysis" in snapshot
+          ? (snapshot.structureAnalysis ?? undefined)
+          : stock.structureAnalysis,
     };
+    return next;
   });
 }
 

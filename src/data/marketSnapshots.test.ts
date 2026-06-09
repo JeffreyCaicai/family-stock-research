@@ -72,4 +72,32 @@ describe("applyMarketSnapshots", () => {
     expect(stock.price).toBe(seedFamilyPool[0].price);
     expect(stock.dataSync.state).toBe("sample");
   });
+
+  it("clears stale structure analysis when the real data sync fails", () => {
+    const snapshots: MarketSnapshot[] = [
+      {
+        ticker: "688041",
+        dataHealthLabel: "AKShare 真实数据同步失败",
+        dataSync: {
+          state: "failed",
+          source: "AKShare",
+          detail: "东方财富接口连接失败",
+        },
+        decisionInput: {
+          dataHealth: "missing",
+          riskFlags: ["真实数据同步失败"],
+          trend: "range",
+          structureSignal: "none",
+        },
+        structureAnalysis: null,
+      },
+    ];
+
+    const [stock] = applyMarketSnapshots(seedFamilyPool, snapshots);
+
+    expect(stock.dataSync.state).toBe("failed");
+    expect(stock.dataHealthLabel).toBe("AKShare 真实数据同步失败");
+    expect(stock.decisionInput.dataHealth).toBe("missing");
+    expect(stock.structureAnalysis).toBeUndefined();
+  });
 });

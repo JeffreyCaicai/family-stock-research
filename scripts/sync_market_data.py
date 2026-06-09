@@ -131,13 +131,20 @@ def sync_from_akshare(tickers: list[str]) -> list[dict[str, Any]]:
 
     synced_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     snapshots: list[dict[str, Any]] = []
-    spot = ak.stock_zh_a_spot_em()
+    try:
+        spot = ak.stock_zh_a_spot_em()
+    except Exception as exc:
+        detail = f"AKShare 东方财富行情源连接失败：{exc}"
+        return [failed_snapshot(ticker, "AKShare", detail, synced_at) for ticker in tickers]
+
     rows_by_code = {str(row["代码"]): row for _, row in spot.iterrows()}
 
     for ticker in tickers:
         row = rows_by_code.get(ticker)
         if row is None:
-            snapshots.append(failed_snapshot(ticker, "AKShare", "东方财富现货行情未返回该股票"))
+            snapshots.append(
+                failed_snapshot(ticker, "AKShare", "东方财富现货行情未返回该股票", synced_at)
+            )
             continue
 
         market_row = {
@@ -150,14 +157,28 @@ def sync_from_akshare(tickers: list[str]) -> list[dict[str, Any]]:
     return snapshots
 
 
-def failed_snapshot(ticker: str, source: str, detail: str) -> dict[str, Any]:
+def failed_snapshot(
+    ticker: str,
+    source: str,
+    detail: str,
+    synced_at: str | None = None,
+) -> dict[str, Any]:
     return {
         "ticker": ticker,
+        "dataHealthLabel": f"{source} 真实数据同步失败，不能下操作结论",
         "dataSync": {
             "state": "failed",
             "source": source,
             "detail": detail,
+            **({"lastSyncedAt": synced_at} if synced_at else {}),
         },
+        "decisionInput": {
+            "dataHealth": "missing",
+            "riskFlags": ["真实数据同步失败"],
+            "trend": "range",
+            "structureSignal": "none",
+        },
+        "structureAnalysis": None,
     }
 
 
