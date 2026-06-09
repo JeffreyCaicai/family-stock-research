@@ -155,6 +155,31 @@ select {
   margin: 0;
 }
 
+.section-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.section-actions button {
+  background: #ffffff;
+  border: 1px solid #155eef;
+  border-radius: 8px;
+  color: #155eef;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 7px 11px;
+}
+
+.section-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .section-title.compact h2 {
   font-size: 18px;
 }

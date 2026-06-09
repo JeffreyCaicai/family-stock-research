@@ -1,7 +1,9 @@
 import type { FamilyPoolItem, FamilyPoolStatus } from "../domain/familyPool";
-import { createFamilyPoolItem, mergeFamilyPoolItems } from "../domain/familyPool";
+import { createFamilyPoolItem, mergeFamilyPoolItems, normalizeTicker } from "../domain/familyPool";
+import type { MarketSnapshot } from "./marketSnapshots";
 
 export const FAMILY_POOL_API_URL = "http://localhost:8787/api/family-pool";
+export const MARKET_SYNC_API_URL = "http://localhost:8787/api/market-sync";
 
 export async function loadFamilyPoolFromApi(): Promise<FamilyPoolItem[] | null> {
   if (typeof fetch === "undefined") {
@@ -36,6 +38,31 @@ export async function saveFamilyPoolToApi(items: FamilyPoolItem[]): Promise<bool
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+export async function refreshMarketSnapshotFromApi(
+  tickerInput: string,
+): Promise<MarketSnapshot[] | null> {
+  if (typeof fetch === "undefined") {
+    return null;
+  }
+
+  try {
+    const ticker = normalizeTicker(tickerInput);
+    const response = await fetch(MARKET_SYNC_API_URL, {
+      body: JSON.stringify({ provider: "akshare", ticker }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json();
+    return Array.isArray(payload) ? payload : payload.snapshots ?? [];
+  } catch {
+    return null;
   }
 }
 

@@ -1,11 +1,16 @@
 import { createServer } from "node:http";
-import { readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const DEFAULT_POOL_PATH = resolve(ROOT, "data", "family-pool.json");
 export const DEFAULT_PORT = 8787;
+const SYNC_SCRIPT_PATH = resolve(ROOT, "scripts", "sync_market_data.py");
+const execFileAsync = promisify(execFile);
 
 const validStatuses = new Set(["holding", "watching", "researching", "paused"]);
 
@@ -20,7 +25,10 @@ export async function writeFamilyPool(items, poolPath = DEFAULT_POOL_PATH) {
   return normalized;
 }
 
-export function createFamilyPoolApiServer({ poolPath = DEFAULT_POOL_PATH } = {}) {
+export function createFamilyPoolApiServer({
+  poolPath = DEFAULT_POOL_PATH,
+  syncMarketData = syncMarketDataWithPython,
+} = {}) {
   return createServer(async (request, response) => {
     setCorsHeaders(response);
 
@@ -30,22 +38,46 @@ export function createFamilyPoolApiServer({ poolPath = DEFAULT_POOL_PATH } = {})
       return;
     }
 
-    if (!request.url?.startsWith("/api/family-pool")) {
+    const pathname = getRequestPathname(request.url);
+    if (pathname !== "/api/family-pool" && pathname !== "/api/market-sync") {
       writeJson(response, 404, { error: "Not found" });
       return;
     }
 
     try {
-      if (request.method === "GET") {
+      if (pathname === "/api/family-pool" && request.method === "GET") {
         writeJson(response, 200, { items: await readFamilyPool(poolPath) });
         return;
       }
 
-      if (request.method === "PUT" || request.method === "POST") {
+      if (
+        pathname === "/api/family-pool" &&
+        (request.method === "PUT" || request.method === "POST")
+      ) {
         const body = await readRequestBody(request);
         const parsed = body ? JSON.parse(body) : {};
         const items = Array.isArray(parsed) ? parsed : parsed.items;
         writeJson(response, 200, { items: await writeFamilyPool(items ?? [], poolPath) });
+        return;
+      }
+
+      if (pathname === "/api/market-sync" && request.method === "POST") {
+        const body = await readRequestBody(request);
+        const parsed = body ? JSON.parse(body) : {};
+        const ticker = normalizeTicker(String(parsed.ticker ?? ""));
+        if (!ticker) {
+          writeJson(response, 400, { error: "Invalid ticker" });
+          return;
+        }
+
+        writeJson(
+          response,
+          200,
+          await syncMarketData({
+            provider: normalizeProvider(String(parsed.provider ?? "fixture")),
+            ticker,
+          }),
+        );
         return;
       }
 
@@ -56,6 +88,34 @@ export function createFamilyPoolApiServer({ poolPath = DEFAULT_POOL_PATH } = {})
       });
     }
   });
+}
+
+export async function syncMarketDataWithPython({
+  provider = "fixture",
+  ticker,
+  pythonBin = process.env.PYTHON_BIN || "python3",
+} = {}) {
+  const normalizedTicker = normalizeTicker(String(ticker ?? ""));
+  if (!normalizedTicker) {
+    throw new Error("Invalid ticker");
+  }
+
+  const tempDir = await mkdtemp(join(tmpdir(), "family-market-sync-"));
+  const outputPath = join(tempDir, "marketSnapshots.json");
+  await execFileAsync(pythonBin, [
+    SYNC_SCRIPT_PATH,
+    "--provider",
+    normalizeProvider(provider),
+    "--tickers",
+    normalizedTicker,
+    "--output",
+    outputPath,
+  ]);
+
+  return {
+    provider: normalizeProvider(provider),
+    snapshots: JSON.parse(await readFile(outputPath, "utf-8")),
+  };
 }
 
 export function normalizeFamilyPoolItems(input) {
@@ -93,6 +153,10 @@ function normalizeStatus(input) {
   return validStatuses.has(input) ? input : "watching";
 }
 
+function normalizeProvider(input) {
+  return input === "akshare" ? "akshare" : "fixture";
+}
+
 function normalizeTags(input) {
   if (!Array.isArray(input)) {
     return [];
@@ -126,8 +190,19 @@ function setCorsHeaders(response) {
   response.setHeader("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS");
 }
 
+function getRequestPathname(url) {
+  try {
+    return new URL(url ?? "", "http://localhost").pathname;
+  } catch {
+    return "";
+  }
+}
+
 function writeJson(response, status, payload) {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  response.writeHead(status, {
+    "connection": "close",
+    "content-type": "application/json; charset=utf-8",
+  });
   response.end(JSON.stringify(payload));
 }
 

@@ -127,4 +127,35 @@ describe("App", () => {
     expect(screen.getAllByText("可继续持有").length).toBeGreaterThan(0);
     expect(screen.getByText("399.13")).toBeInTheDocument();
   });
+
+  it("refreshes the selected stock analysis from the local market sync API", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("family pool api offline"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          snapshots: [
+            {
+              ticker: "688041",
+              name: "海光信息",
+              price: 281.12,
+              dataHealthLabel: "行情、日线、周线、60 分钟线已更新",
+              dataSync: {
+                state: "synced",
+                source: "AKShare",
+                detail: "行情、日线、周线、60 分钟线已更新并生成结构摘要",
+              },
+            },
+          ],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "刷新分析" }));
+
+    expect(await screen.findByText("281.12")).toBeInTheDocument();
+    expect(screen.getByText("行情、日线、周线、60 分钟线已更新")).toBeInTheDocument();
+  });
 });

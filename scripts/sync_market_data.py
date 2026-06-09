@@ -36,10 +36,15 @@ def main() -> None:
         help="Fixture JSON used by the offline provider.",
     )
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Snapshot JSON output path.")
+    parser.add_argument(
+        "--tickers",
+        default="",
+        help="Comma or whitespace separated tickers. When set, sync these instead of the pool file.",
+    )
     args = parser.parse_args()
 
     pool_items = read_family_pool_items(Path(args.pool))
-    tickers = [item["ticker"] for item in pool_items]
+    tickers = select_sync_tickers(pool_items, args.tickers)
     if args.provider == "fixture":
         snapshots = sync_from_fixture(tickers, Path(args.fixture))
     else:
@@ -90,6 +95,16 @@ def normalize_tags(value: Any) -> list[str]:
         if text and text not in tags:
             tags.append(text)
     return tags
+
+
+def select_sync_tickers(pool_items: list[dict[str, Any]], explicit_tickers: str = "") -> list[str]:
+    raw_values = (
+        explicit_tickers.replace(",", " ").replace("，", " ").split()
+        if explicit_tickers.strip()
+        else [str(item.get("ticker", "")) for item in pool_items]
+    )
+    tickers = {ticker for value in raw_values if (ticker := normalize_ticker(value))}
+    return sorted(tickers)
 
 
 def sync_from_fixture(tickers: list[str], fixture_path: Path) -> list[dict[str, Any]]:
@@ -212,7 +227,12 @@ def market_symbol(ticker: str) -> str:
 
 def dataframe_to_k_lines(frame: Any) -> list[dict[str, Any]]:
     records = frame.tail(160).to_dict("records")
-    return [normalize_k_line(record) for record in records if normalize_k_line(record)]
+    bars: list[dict[str, Any]] = []
+    for record in records:
+        bar = normalize_k_line(record)
+        if bar:
+            bars.append(bar)
+    return bars
 
 
 def normalize_k_lines(value: Any) -> list[dict[str, float | str]]:

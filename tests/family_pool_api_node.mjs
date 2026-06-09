@@ -17,13 +17,31 @@ before(async () => {
     JSON.stringify([{ ticker: "688041", status: "holding", tags: ["AI"] }]),
     "utf-8",
   );
-  server = createFamilyPoolApiServer({ poolPath });
+  server = createFamilyPoolApiServer({
+    poolPath,
+    syncMarketData: async ({ provider, ticker }) => ({
+      provider,
+      snapshots: [
+        {
+          ticker,
+          name: "海光信息",
+          price: 281.12,
+          dataSync: {
+            state: "synced",
+            source: provider,
+            detail: "测试同步完成",
+          },
+        },
+      ],
+    }),
+  });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   baseUrl = `http://127.0.0.1:${address.port}`;
 });
 
 after(async () => {
+  server.closeAllConnections?.();
   await new Promise((resolve) => server.close(resolve));
 });
 
@@ -75,4 +93,29 @@ test("PUT /api/family-pool writes normalized items to disk", async () => {
     ],
   });
   assert.match(await readFile(poolPath, "utf-8"), /600519/);
+});
+
+test("POST /api/market-sync refreshes a single stock snapshot", async () => {
+  const response = await fetch(`${baseUrl}/api/market-sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "akshare", ticker: "sh688041" }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    provider: "akshare",
+    snapshots: [
+      {
+        ticker: "688041",
+        name: "海光信息",
+        price: 281.12,
+        dataSync: {
+          state: "synced",
+          source: "akshare",
+          detail: "测试同步完成",
+        },
+      },
+    ],
+  });
 });

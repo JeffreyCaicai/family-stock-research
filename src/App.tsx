@@ -9,7 +9,11 @@ import {
   mergeFamilyPoolItems,
   normalizeTicker,
 } from "./domain/familyPool";
-import { loadFamilyPoolFromApi, saveFamilyPoolToApi } from "./data/familyPoolApi";
+import {
+  loadFamilyPoolFromApi,
+  refreshMarketSnapshotFromApi,
+  saveFamilyPoolToApi,
+} from "./data/familyPoolApi";
 import { loadFamilyPoolItems, saveFamilyPoolItems } from "./data/familyPoolRepository";
 import { applyMarketSnapshots } from "./data/marketSnapshots";
 import { seedFamilyPool, type SeedStock } from "./data/seedFamilyPool";
@@ -39,6 +43,8 @@ export function App() {
   const [statusInput, setStatusInput] = useState<FamilyPoolStatus>("watching");
   const [tagsInput, setTagsInput] = useState("");
   const [formError, setFormError] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState("");
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,7 +59,7 @@ export function App() {
       setFamilyPool(next);
       saveFamilyPoolItems(next);
       setSelectedTicker((current) =>
-        current && next.some((stock) => stock.ticker === current) ? current : next[0]?.ticker,
+        current && next.some((stock) => stock.ticker === current) ? current : (next[0]?.ticker ?? null),
       );
     });
 
@@ -105,6 +111,29 @@ export function App() {
     } catch {
       setFormError("请输入 6 位 A 股代码，例如 600519。");
     }
+  }
+
+  async function handleRefreshAnalysis() {
+    if (!selected || isRefreshing) {
+      return;
+    }
+
+    setIsRefreshing(true);
+    setRefreshError("");
+    const snapshots = await refreshMarketSnapshotFromApi(selected.ticker);
+    setIsRefreshing(false);
+
+    if (!snapshots || snapshots.length === 0) {
+      setRefreshError("本地同步服务暂不可用，请确认 API 已启动。");
+      return;
+    }
+
+    setFamilyPool((current) => {
+      const next = applyMarketSnapshots(current, snapshots);
+      saveFamilyPoolItems(next);
+      return next;
+    });
+    setSelectedTicker(selected.ticker);
   }
 
   return (
@@ -211,8 +240,14 @@ export function App() {
         <section className="panel analysis-panel">
           <div className="section-title">
             <h2>{selected.name}</h2>
-            <span>{selected.ticker}</span>
+            <div className="section-actions">
+              <span>{selected.ticker}</span>
+              <button disabled={isRefreshing} onClick={handleRefreshAnalysis} type="button">
+                {isRefreshing ? "刷新中" : "刷新分析"}
+              </button>
+            </div>
           </div>
+          {refreshError ? <p className="form-error">{refreshError}</p> : null}
 
           <div className={`decision-card tone-${decision.tone}`}>
             <span>当前结论</span>

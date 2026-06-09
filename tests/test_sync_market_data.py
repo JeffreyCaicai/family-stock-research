@@ -54,6 +54,16 @@ class SyncMarketDataTest(unittest.TestCase):
             ],
         )
 
+    def test_select_sync_tickers_prefers_explicit_tickers_over_pool(self):
+        pool_items = [
+            {"ticker": "002916", "status": "holding", "tags": []},
+            {"ticker": "688041", "status": "watching", "tags": []},
+        ]
+
+        tickers = sync_market_data.select_sync_tickers(pool_items, "sh688041, bad, 600519")
+
+        self.assertEqual(tickers, ["600519", "688041"])
+
     def test_fixture_sync_outputs_structure_analysis_from_k_lines(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_path = Path(temp_dir) / "fixture.json"

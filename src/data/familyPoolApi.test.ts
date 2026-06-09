@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadFamilyPoolFromApi, saveFamilyPoolToApi } from "./familyPoolApi";
+import { loadFamilyPoolFromApi, refreshMarketSnapshotFromApi, saveFamilyPoolToApi } from "./familyPoolApi";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -61,5 +61,38 @@ describe("saveFamilyPoolToApi", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
 
     await expect(saveFamilyPoolToApi([])).resolves.toBe(false);
+  });
+
+  it("refreshes one ticker through the local market sync API", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        snapshots: [
+          {
+            ticker: "688041",
+            name: "海光信息",
+            price: 281.12,
+            dataSync: { state: "synced", source: "AKShare", detail: "同步完成" },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(refreshMarketSnapshotFromApi("sh688041")).resolves.toEqual([
+      {
+        ticker: "688041",
+        name: "海光信息",
+        price: 281.12,
+        dataSync: { state: "synced", source: "AKShare", detail: "同步完成" },
+      },
+    ]);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "http://localhost:8787/api/market-sync",
+      expect.objectContaining({
+        body: JSON.stringify({ provider: "akshare", ticker: "688041" }),
+        method: "POST",
+      }),
+    );
   });
 });
