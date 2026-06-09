@@ -158,6 +158,45 @@ class SyncMarketDataTest(unittest.TestCase):
         self.assertEqual(snapshots[0]["decisionInput"]["dataHealth"], "missing")
         self.assertIsNone(snapshots[0]["structureAnalysis"])
 
+    def test_auto_provider_uses_baostock_when_akshare_fails(self):
+        akshare_failure = [
+            sync_market_data.failed_snapshot("688041", "AKShare", "proxy down", "2026-06-10 09:30")
+        ]
+        baostock_success = [
+            sync_market_data.build_snapshot(
+                "688041",
+                {"name": "688041", "price": 35.0, "dailyKLines": make_bars(range(20, 45))},
+                "BaoStock",
+                "synced",
+                "2026-06-10 09:31",
+            )
+        ]
+
+        with patch.object(sync_market_data, "sync_from_akshare", return_value=akshare_failure):
+            with patch.object(sync_market_data, "sync_from_baostock", return_value=baostock_success):
+                snapshots = sync_market_data.sync_from_auto(["688041"])
+
+        self.assertEqual(snapshots[0]["ticker"], "688041")
+        self.assertEqual(snapshots[0]["dataSync"]["source"], "BaoStock")
+        self.assertEqual(snapshots[0]["price"], 35.0)
+
+    def test_baostock_provider_builds_partial_real_daily_snapshot(self):
+        fake_baostock = make_fake_baostock(
+            [
+                ["2026-05-01", "20", "22", "19", "21", "1000"],
+                ["2026-05-02", "21", "23", "20", "22", "1200"],
+            ]
+        )
+
+        with patch.dict("sys.modules", {"baostock": fake_baostock}):
+            snapshots = sync_market_data.sync_from_baostock(["688041"])
+
+        self.assertEqual(snapshots[0]["ticker"], "688041")
+        self.assertEqual(snapshots[0]["price"], 22.0)
+        self.assertEqual(snapshots[0]["dataSync"]["source"], "BaoStock")
+        self.assertEqual(snapshots[0]["decisionInput"]["dataHealth"], "missing")
+        self.assertEqual(fake_baostock.queried_codes, ["sh.688041"])
+
 
 def make_bars(closes):
     return [
@@ -171,6 +210,37 @@ def make_bars(closes):
         }
         for index, close in enumerate(closes)
     ]
+
+
+def make_fake_baostock(rows):
+    class FakeLogin:
+        error_code = "0"
+
+    class FakeResult:
+        error_code = "0"
+        fields = ["date", "open", "high", "low", "close", "volume"]
+
+        def __init__(self, values):
+            self.values = values
+            self.index = -1
+
+        def next(self):
+            self.index += 1
+            return self.index < len(self.values)
+
+        def get_row_data(self):
+            return self.values[self.index]
+
+    fake = types.SimpleNamespace(queried_codes=[])
+
+    def query_history_k_data_plus(code, fields, start_date, end_date, frequency, adjustflag):
+        fake.queried_codes.append(code)
+        return FakeResult(rows)
+
+    fake.login = lambda: FakeLogin()
+    fake.logout = lambda: None
+    fake.query_history_k_data_plus = query_history_k_data_plus
+    return fake
 
 
 if __name__ == "__main__":

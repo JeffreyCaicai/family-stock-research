@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { createFamilyPoolApiServer, readFamilyPool, writeFamilyPool } from "../scripts/family_pool_api.mjs";
+import {
+  createFamilyPoolApiServer,
+  readFamilyPool,
+  syncMarketDataWithPython,
+  writeFamilyPool,
+} from "../scripts/family_pool_api.mjs";
 
 let server;
 let baseUrl;
@@ -99,12 +104,12 @@ test("POST /api/market-sync refreshes a single stock snapshot", async () => {
   const response = await fetch(`${baseUrl}/api/market-sync`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ provider: "akshare", ticker: "sh688041" }),
+    body: JSON.stringify({ provider: "auto", ticker: "sh688041" }),
   });
 
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
-    provider: "akshare",
+    provider: "auto",
     snapshots: [
       {
         ticker: "688041",
@@ -112,10 +117,48 @@ test("POST /api/market-sync refreshes a single stock snapshot", async () => {
         price: 281.12,
         dataSync: {
           state: "synced",
-          source: "akshare",
+          source: "auto",
           detail: "测试同步完成",
         },
       },
     ],
   });
+});
+
+test("syncMarketDataWithPython returns a failed snapshot when the provider command times out", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "family-pool-timeout-"));
+  const slowCommand = join(dir, "slow-provider.mjs");
+  await writeFile(
+    slowCommand,
+    "#!/usr/bin/env node\nsetTimeout(() => {}, 1000);\n",
+    "utf-8",
+  );
+  await chmod(slowCommand, 0o755);
+
+  const result = await syncMarketDataWithPython({
+    provider: "auto",
+    pythonBin: slowCommand,
+    syncTimeoutMs: 20,
+    ticker: "688041",
+  });
+
+  assert.equal(result.provider, "auto");
+  assert.deepEqual(result.snapshots, [
+    {
+      ticker: "688041",
+      dataHealthLabel: "auto 真实数据同步失败，不能下操作结论",
+      dataSync: {
+        state: "failed",
+        source: "auto",
+        detail: "真实数据同步超时或失败",
+      },
+      decisionInput: {
+        dataHealth: "missing",
+        riskFlags: ["真实数据同步失败"],
+        structureSignal: "none",
+        trend: "range",
+      },
+      structureAnalysis: null,
+    },
+  ]);
 });

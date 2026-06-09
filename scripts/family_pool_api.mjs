@@ -74,7 +74,7 @@ export function createFamilyPoolApiServer({
           response,
           200,
           await syncMarketData({
-            provider: normalizeProvider(String(parsed.provider ?? "fixture")),
+            provider: normalizeProvider(String(parsed.provider ?? "auto")),
             ticker,
           }),
         );
@@ -91,7 +91,8 @@ export function createFamilyPoolApiServer({
 }
 
 export async function syncMarketDataWithPython({
-  provider = "fixture",
+  provider = "auto",
+  syncTimeoutMs = 45000,
   ticker,
   pythonBin = process.env.PYTHON_BIN || "python3",
 } = {}) {
@@ -102,20 +103,32 @@ export async function syncMarketDataWithPython({
 
   const tempDir = await mkdtemp(join(tmpdir(), "family-market-sync-"));
   const outputPath = join(tempDir, "marketSnapshots.json");
-  await execFileAsync(pythonBin, [
-    SYNC_SCRIPT_PATH,
-    "--provider",
-    normalizeProvider(provider),
-    "--tickers",
-    normalizedTicker,
-    "--output",
-    outputPath,
-  ]);
+  const normalizedProvider = normalizeProvider(provider);
+  try {
+    await execFileAsync(
+      pythonBin,
+      [
+        SYNC_SCRIPT_PATH,
+        "--provider",
+        normalizedProvider,
+        "--tickers",
+        normalizedTicker,
+        "--output",
+        outputPath,
+      ],
+      { timeout: syncTimeoutMs },
+    );
 
-  return {
-    provider: normalizeProvider(provider),
-    snapshots: JSON.parse(await readFile(outputPath, "utf-8")),
-  };
+    return {
+      provider: normalizedProvider,
+      snapshots: JSON.parse(await readFile(outputPath, "utf-8")),
+    };
+  } catch {
+    return {
+      provider: normalizedProvider,
+      snapshots: [failedMarketSyncSnapshot(normalizedTicker, normalizedProvider)],
+    };
+  }
 }
 
 export function normalizeFamilyPoolItems(input) {
@@ -154,7 +167,26 @@ function normalizeStatus(input) {
 }
 
 function normalizeProvider(input) {
-  return input === "akshare" ? "akshare" : "fixture";
+  return input === "akshare" || input === "baostock" || input === "fixture" ? input : "auto";
+}
+
+function failedMarketSyncSnapshot(ticker, source) {
+  return {
+    ticker,
+    dataHealthLabel: `${source} 真实数据同步失败，不能下操作结论`,
+    dataSync: {
+      state: "failed",
+      source,
+      detail: "真实数据同步超时或失败",
+    },
+    decisionInput: {
+      dataHealth: "missing",
+      riskFlags: ["真实数据同步失败"],
+      structureSignal: "none",
+      trend: "range",
+    },
+    structureAnalysis: null,
+  };
 }
 
 function normalizeTags(input) {

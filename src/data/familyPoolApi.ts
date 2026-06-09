@@ -51,7 +51,7 @@ export async function refreshMarketSnapshotFromApi(
   try {
     const ticker = normalizeTicker(tickerInput);
     const response = await fetch(MARKET_SYNC_API_URL, {
-      body: JSON.stringify({ provider: "akshare", ticker }),
+      body: JSON.stringify({ provider: "auto", ticker }),
       headers: { "content-type": "application/json" },
       method: "POST",
     });

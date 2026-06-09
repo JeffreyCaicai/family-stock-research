@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -26,9 +26,9 @@ def main() -> None:
     parser.add_argument("--pool", default=str(DEFAULT_POOL), help="JSON file with tickers to sync.")
     parser.add_argument(
         "--provider",
-        choices=["fixture", "akshare"],
+        choices=["fixture", "akshare", "baostock", "auto"],
         default="fixture",
-        help="Data provider. fixture is offline; akshare requires the Python package.",
+        help="Data provider. auto tries AKShare first and falls back to BaoStock.",
     )
     parser.add_argument(
         "--fixture",
@@ -47,8 +47,12 @@ def main() -> None:
     tickers = select_sync_tickers(pool_items, args.tickers)
     if args.provider == "fixture":
         snapshots = sync_from_fixture(tickers, Path(args.fixture))
-    else:
+    elif args.provider == "akshare":
         snapshots = sync_from_akshare(tickers)
+    elif args.provider == "baostock":
+        snapshots = sync_from_baostock(tickers)
+    else:
+        snapshots = sync_from_auto(tickers)
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -157,6 +161,110 @@ def sync_from_akshare(tickers: list[str]) -> list[dict[str, Any]]:
     return snapshots
 
 
+def sync_from_auto(tickers: list[str]) -> list[dict[str, Any]]:
+    akshare_snapshots = sync_from_akshare(tickers)
+    if any(snapshot.get("dataSync", {}).get("state") != "failed" for snapshot in akshare_snapshots):
+        return akshare_snapshots
+
+    baostock_snapshots = sync_from_baostock(tickers)
+    if any(snapshot.get("dataSync", {}).get("state") != "failed" for snapshot in baostock_snapshots):
+        return baostock_snapshots
+
+    return [
+        merge_failed_snapshots(ticker, akshare_snapshots, baostock_snapshots)
+        for ticker in tickers
+    ]
+
+
+def sync_from_baostock(tickers: list[str]) -> list[dict[str, Any]]:
+    try:
+        import baostock as bs  # type: ignore
+    except ImportError:
+        synced_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+        return [
+            failed_snapshot(ticker, "BaoStock", "BaoStock 未安装，请先运行 pip install baostock", synced_at)
+            for ticker in tickers
+        ]
+
+    synced_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    snapshots: list[dict[str, Any]] = []
+    login = bs.login()
+    if getattr(login, "error_code", "0") != "0":
+        detail = f"BaoStock 登录失败：{getattr(login, 'error_msg', 'unknown error')}"
+        return [failed_snapshot(ticker, "BaoStock", detail, synced_at) for ticker in tickers]
+
+    try:
+        for ticker in tickers:
+            daily = fetch_baostock_daily_k_lines(bs, ticker)
+            if not daily:
+                snapshots.append(failed_snapshot(ticker, "BaoStock", "BaoStock 未返回历史日 K", synced_at))
+                continue
+
+            snapshots.append(
+                build_snapshot(
+                    ticker,
+                    {
+                        "name": ticker,
+                        "price": daily[-1]["close"],
+                        "dailyKLines": daily,
+                    },
+                    "BaoStock",
+                    "synced",
+                    synced_at,
+                )
+            )
+    finally:
+        bs.logout()
+
+    return snapshots
+
+
+def fetch_baostock_daily_k_lines(bs: Any, ticker: str) -> list[dict[str, Any]]:
+    end_date = datetime.now().strftime("%Y-%m-%d")
+    start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+    result = bs.query_history_k_data_plus(
+        baostock_symbol(ticker),
+        "date,open,high,low,close,volume",
+        start_date=start_date,
+        end_date=end_date,
+        frequency="d",
+        adjustflag="2",
+    )
+    if getattr(result, "error_code", "0") != "0":
+        return []
+
+    rows: list[dict[str, Any]] = []
+    fields = list(getattr(result, "fields", []))
+    while result.next():
+        rows.append(dict(zip(fields, result.get_row_data())))
+
+    return normalize_k_lines(rows)
+
+
+def baostock_symbol(ticker: str) -> str:
+    prefix = "sh" if ticker.startswith(("6", "9")) else "sz"
+    return f"{prefix}.{ticker}"
+
+
+def merge_failed_snapshots(
+    ticker: str,
+    akshare_snapshots: list[dict[str, Any]],
+    baostock_snapshots: list[dict[str, Any]],
+) -> dict[str, Any]:
+    details = []
+    for snapshot in [*akshare_snapshots, *baostock_snapshots]:
+        if snapshot.get("ticker") == ticker:
+            detail = snapshot.get("dataSync", {}).get("detail")
+            if detail:
+                details.append(detail)
+    return failed_snapshot(
+        ticker,
+        "auto",
+        "；".join(details) if details else "所有免费数据源均同步失败",
+        datetime.now().strftime("%Y-%m-%d %H:%M"),
+    )
+
+
 def failed_snapshot(
     ticker: str,
     source: str,
@@ -219,6 +327,8 @@ def build_snapshot(
     if has_structure:
         snapshot["decisionInput"] = structure["decisionInput"]
         snapshot["structureAnalysis"] = structure
+    else:
+        snapshot["decisionInput"] = structure["decisionInput"]
 
     return snapshot
 

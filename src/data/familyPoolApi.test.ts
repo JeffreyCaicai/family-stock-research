@@ -90,7 +90,7 @@ describe("saveFamilyPoolToApi", () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       "http://localhost:8787/api/market-sync",
       expect.objectContaining({
-        body: JSON.stringify({ provider: "akshare", ticker: "688041" }),
+        body: JSON.stringify({ provider: "auto", ticker: "688041" }),
         method: "POST",
       }),
     );
