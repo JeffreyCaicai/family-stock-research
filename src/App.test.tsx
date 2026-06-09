@@ -1,10 +1,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  vi.restoreAllMocks();
 });
 
 describe("App", () => {
@@ -55,5 +56,23 @@ describe("App", () => {
 
     expect(screen.getByText("600519 待同步")).toBeInTheDocument();
     expect(screen.getByText("4 只")).toBeInTheDocument();
+  });
+
+  it("tries to write new stocks to the local file API", () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("股票代码"), { target: { value: "600519" } });
+    fireEvent.change(screen.getByLabelText("标签"), {
+      target: { value: "白酒, 爸爸关注" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "加入家庭股票池" }));
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "http://localhost:8787/api/family-pool",
+      expect.objectContaining({ method: "PUT" }),
+    );
+    expect(screen.getByText("600519 待同步")).toBeInTheDocument();
   });
 });

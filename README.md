@@ -26,6 +26,14 @@ npm run dev
 
 默认本地地址：`http://localhost:5173/`。
 
+本地文件 API：
+
+```bash
+npm run api
+```
+
+默认 API 地址：`http://localhost:8787/api/family-pool`。页面新增股票时会优先尝试写入这个 API；如果 API 未启动，页面仍会保存在浏览器本地。
+
 ## 行情同步
 
 当前已经建立同步快照契约，前端读取 `src/data/generated/marketSnapshots.json`。
@@ -57,6 +65,7 @@ npm run sync:akshare
 
 ```bash
 npm run test:sync
+npm run test:api
 ```
 
 ## 文档

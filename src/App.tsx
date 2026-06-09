@@ -8,6 +8,7 @@ import {
   mergeFamilyPoolItems,
   normalizeTicker,
 } from "./domain/familyPool";
+import { saveFamilyPoolToApi } from "./data/familyPoolApi";
 import { loadFamilyPoolItems, saveFamilyPoolItems } from "./data/familyPoolRepository";
 import { applyMarketSnapshots } from "./data/marketSnapshots";
 import { seedFamilyPool, type SeedStock } from "./data/seedFamilyPool";
@@ -62,6 +63,7 @@ export function App() {
           toDisplayStock(item, current),
         );
         saveFamilyPoolItems(next);
+        void saveFamilyPoolToApi(next);
         return next;
       });
       setTickerInput("");

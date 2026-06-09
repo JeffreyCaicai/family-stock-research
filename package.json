@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "api": "node scripts/family_pool_api.mjs",
     "build": "tsc -b && vite build",
     "sync:fixture": "python3 scripts/sync_market_data.py --provider fixture",
     "sync:akshare": "python3 scripts/sync_market_data.py --provider akshare",
     "test:sync": "python3 tests/test_sync_market_data.py",
+    "test:api": "node --test tests/family_pool_api_node.mjs",
     "test": "vitest run"
   },
   "dependencies": {
