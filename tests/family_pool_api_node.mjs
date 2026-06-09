@@ -78,6 +78,15 @@ test("GET /api/family-pool returns normalized items", async () => {
   });
 });
 
+test("GET /api/family-pool allows the 127 localhost app origin", async () => {
+  const response = await fetch(`${baseUrl}/api/family-pool`, {
+    headers: { origin: "http://127.0.0.1:5173" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
+});
+
 test("PUT /api/family-pool writes normalized items to disk", async () => {
   const response = await fetch(`${baseUrl}/api/family-pool`, {
     method: "PUT",

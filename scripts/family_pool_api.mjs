@@ -30,7 +30,7 @@ export function createFamilyPoolApiServer({
   syncMarketData = syncMarketDataWithPython,
 } = {}) {
   return createServer(async (request, response) => {
-    setCorsHeaders(response);
+    setCorsHeaders(response, request);
 
     if (request.method === "OPTIONS") {
       response.writeHead(204);
@@ -223,10 +223,16 @@ function readRequestBody(request) {
   });
 }
 
-function setCorsHeaders(response) {
-  response.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+function setCorsHeaders(response, request) {
+  const allowedOrigins = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
+  const origin = request.headers.origin;
+  response.setHeader(
+    "Access-Control-Allow-Origin",
+    allowedOrigins.has(origin) ? origin : "http://localhost:5173",
+  );
   response.setHeader("Access-Control-Allow-Headers", "content-type");
   response.setHeader("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS");
+  response.setHeader("Vary", "Origin");
 }
 
 function getRequestPathname(url) {
