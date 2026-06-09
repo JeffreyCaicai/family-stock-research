@@ -1,0 +1,17 @@
+[
+  {
+    "ticker": "688041",
+    "status": "holding",
+    "tags": ["AI", "爸爸关注"]
+  },
+  {
+    "ticker": "002916",
+    "status": "holding",
+    "tags": ["PCB", "稳健复盘"]
+  },
+  {
+    "ticker": "688630",
+    "status": "watching",
+    "tags": ["半导体设备"]
+  }
+]

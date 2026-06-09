@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "sync:fixture": "python3 scripts/sync_market_data.py --provider fixture",
     "sync:akshare": "python3 scripts/sync_market_data.py --provider akshare",
+    "test:sync": "python3 tests/test_sync_market_data.py",
     "test": "vitest run"
   },
   "dependencies": {

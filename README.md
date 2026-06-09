@@ -30,6 +30,14 @@ npm run dev
 
 当前已经建立同步快照契约，前端读取 `src/data/generated/marketSnapshots.json`。
 
+正式家庭股票池源：
+
+```text
+data/family-pool.json
+```
+
+这个文件用于同步脚本读取股票代码、状态和标签。页面本地录入仍会先保存在浏览器本地，后续会继续打通“页面录入 -> 家庭股票池文件/API -> 行情同步”的闭环。
+
 离线验证同步管道：
 
 ```bash
@@ -44,6 +52,12 @@ npm run sync:akshare
 ```
 
 注意：fixture 模式只用于验证管道，不代表真实行情；AKShare 接入后仍需继续补日 K、周 K、60 分钟 K、财务和公告数据。
+
+同步脚本测试：
+
+```bash
+npm run test:sync
+```
 
 ## 文档
 

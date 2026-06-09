@@ -16,7 +16,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_POOL = ROOT / "data" / "family-pool.example.json"
+DEFAULT_POOL = ROOT / "data" / "family-pool.json"
 DEFAULT_FIXTURE = ROOT / "data" / "market-sync-fixture.json"
 DEFAULT_OUTPUT = ROOT / "src" / "data" / "generated" / "marketSnapshots.json"
 
@@ -38,7 +38,8 @@ def main() -> None:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Snapshot JSON output path.")
     args = parser.parse_args()
 
-    tickers = read_tickers(Path(args.pool))
+    pool_items = read_family_pool_items(Path(args.pool))
+    tickers = [item["ticker"] for item in pool_items]
     if args.provider == "fixture":
         snapshots = sync_from_fixture(tickers, Path(args.fixture))
     else:
@@ -53,14 +54,42 @@ def main() -> None:
     print(f"Wrote {len(snapshots)} market snapshots to {output}")
 
 
-def read_tickers(path: Path) -> list[str]:
+def read_family_pool_items(path: Path) -> list[dict[str, Any]]:
     raw_items = json.loads(path.read_text(encoding="utf-8"))
-    tickers: list[str] = []
+    items_by_ticker: dict[str, dict[str, Any]] = {}
     for item in raw_items:
-        ticker = str(item.get("ticker", "")).strip()
-        if len(ticker) == 6 and ticker.isdigit():
-            tickers.append(ticker)
-    return sorted(set(tickers))
+        ticker = normalize_ticker(str(item.get("ticker", "")))
+        if not ticker or ticker in items_by_ticker:
+            continue
+
+        items_by_ticker[ticker] = {
+            "ticker": ticker,
+            "status": normalize_status(str(item.get("status", "watching"))),
+            "tags": normalize_tags(item.get("tags", [])),
+        }
+    return [items_by_ticker[ticker] for ticker in sorted(items_by_ticker)]
+
+
+def normalize_ticker(value: str) -> str | None:
+    ticker = value.strip().upper()
+    if ticker.startswith(("SH", "SZ")):
+        ticker = ticker[2:]
+    return ticker if len(ticker) == 6 and ticker.isdigit() else None
+
+
+def normalize_status(value: str) -> str:
+    return value if value in {"holding", "watching", "researching", "paused"} else "watching"
+
+
+def normalize_tags(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    tags: list[str] = []
+    for tag in value:
+        text = str(tag).strip()
+        if text and text not in tags:
+            tags.append(text)
+    return tags
 
 
 def sync_from_fixture(tickers: list[str], fixture_path: Path) -> list[dict[str, Any]]:
