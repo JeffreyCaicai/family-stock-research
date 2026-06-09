@@ -155,6 +155,10 @@ select {
   margin: 0;
 }
 
+.section-title.compact h2 {
+  font-size: 18px;
+}
+
 .stock-list {
   display: grid;
   gap: 12px;
@@ -277,6 +281,50 @@ select {
   line-height: 1.45;
 }
 
+.structure-panel {
+  border-top: 1px solid #d9e0ea;
+  display: grid;
+  gap: 14px;
+  padding-top: 2px;
+}
+
+.structure-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.structure-grid div {
+  background: #f8fafc;
+  border: 1px solid #e5eaf1;
+  border-radius: 10px;
+  display: grid;
+  gap: 6px;
+  min-height: 118px;
+  padding: 14px;
+}
+
+.structure-grid span {
+  color: #657184;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.structure-grid strong {
+  font-size: 18px;
+}
+
+.structure-grid small,
+.structure-summary {
+  color: #526071;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.structure-summary {
+  margin: 0;
+}
+
 @media (max-width: 920px) {
   .app-shell {
     padding: 20px;
@@ -285,6 +333,7 @@ select {
   .hero,
   .workspace,
   .metric-grid,
+  .structure-grid,
   .pool-form {
     grid-template-columns: 1fr;
   }

@@ -96,4 +96,14 @@ describe("App", () => {
     expect(screen.getAllByText("准备研究").length).toBeGreaterThan(0);
     expect(screen.getByText("白酒")).toBeInTheDocument();
   });
+
+  it("shows the selected stock technical structure layer", () => {
+    render(<App />);
+
+    expect(screen.getByText("结构分析层")).toBeInTheDocument();
+    expect(screen.getByText("买点观察")).toBeInTheDocument();
+    expect(screen.getAllByText("二买候选").length).toBeGreaterThan(0);
+    expect(screen.getByText("中枢区间")).toBeInTheDocument();
+    expect(screen.getByText("风险卖点")).toBeInTheDocument();
+  });
 });

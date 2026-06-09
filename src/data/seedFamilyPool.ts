@@ -2,6 +2,7 @@ import type { DataSyncSnapshot } from "../domain/dataSync";
 import type { DecisionInput } from "../domain/decision";
 import type { FamilyPoolItem } from "../domain/familyPool";
 import { createFamilyPoolItem } from "../domain/familyPool";
+import type { TechnicalStructureAnalysis } from "../domain/technicalStructure";
 
 export type SeedStock = FamilyPoolItem & {
   name: string;
@@ -9,6 +10,7 @@ export type SeedStock = FamilyPoolItem & {
   dataHealthLabel: string;
   dataSync: DataSyncSnapshot;
   decisionInput: DecisionInput;
+  structureAnalysis?: TechnicalStructureAnalysis;
 };
 
 export const seedFamilyPool: SeedStock[] = [
@@ -27,6 +29,32 @@ export const seedFamilyPool: SeedStock[] = [
       riskFlags: [],
       trend: "up",
       structureSignal: "second_buy_confirmed",
+    },
+    structureAnalysis: {
+      buyPointLabel: "二买候选",
+      centerRange: { high: 282, low: 250 },
+      dataHealth: "ready",
+      decisionInput: {
+        dataHealth: "ready",
+        riskFlags: [],
+        trend: "up",
+        structureSignal: "second_buy_confirmed",
+      },
+      keyLevels: {
+        resistance: 286,
+        risk: 245,
+        support: 250,
+      },
+      levelSummary: {
+        daily: "日线站上中枢上沿",
+        hourly60: "60 分钟站上短均线",
+        weekly: "周线保持修复",
+      },
+      riskFlags: [],
+      sellPointLabel: "无风险卖点",
+      structureSignal: "second_buy_confirmed",
+      summary: "围绕中枢上沿修复，二买结构进入确认观察。",
+      trend: "up",
     },
   },
   {

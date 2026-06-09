@@ -1,5 +1,7 @@
 import type { DataSyncSnapshot } from "../domain/dataSync";
+import type { DecisionInput } from "../domain/decision";
 import { normalizeTicker } from "../domain/familyPool";
+import type { TechnicalStructureAnalysis } from "../domain/technicalStructure";
 import rawMarketSnapshots from "./generated/marketSnapshots.json";
 import type { SeedStock } from "./seedFamilyPool";
 
@@ -7,8 +9,10 @@ export type MarketSnapshot = {
   ticker: string;
   dataSync: DataSyncSnapshot;
   dataHealthLabel?: string;
+  decisionInput?: DecisionInput;
   name?: string;
   price?: number;
+  structureAnalysis?: TechnicalStructureAnalysis;
 };
 
 export const marketSnapshots: MarketSnapshot[] = normalizeMarketSnapshots(rawMarketSnapshots);
@@ -29,8 +33,10 @@ export function applyMarketSnapshots(
       ...stock,
       dataHealthLabel: snapshot.dataHealthLabel ?? stock.dataHealthLabel,
       dataSync: snapshot.dataSync,
+      decisionInput: snapshot.decisionInput ?? stock.decisionInput,
       name: snapshot.name ?? stock.name,
       price: snapshot.price ?? stock.price,
+      structureAnalysis: snapshot.structureAnalysis ?? stock.structureAnalysis,
     };
   });
 }
@@ -58,8 +64,10 @@ function toMarketSnapshot(input: unknown): MarketSnapshot | null {
       ticker: normalizeTicker(candidate.ticker),
       dataSync: candidate.dataSync,
       dataHealthLabel: candidate.dataHealthLabel,
+      decisionInput: candidate.decisionInput,
       name: candidate.name,
       price: candidate.price,
+      structureAnalysis: candidate.structureAnalysis,
     };
   } catch {
     return null;

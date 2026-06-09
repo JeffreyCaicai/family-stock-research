@@ -12,6 +12,7 @@ import { loadFamilyPoolFromApi, saveFamilyPoolToApi } from "./data/familyPoolApi
 import { loadFamilyPoolItems, saveFamilyPoolItems } from "./data/familyPoolRepository";
 import { applyMarketSnapshots } from "./data/marketSnapshots";
 import { seedFamilyPool, type SeedStock } from "./data/seedFamilyPool";
+import type { StructureRange } from "./domain/technicalStructure";
 
 const statusLabels: Record<FamilyPoolStatus, string> = {
   holding: "已持有",
@@ -59,6 +60,7 @@ export function App() {
   const selected = familyPool[0];
   const decision = deriveDecision(selected.decisionInput);
   const selectedSync = summarizeDataSync(selected.dataSync);
+  const selectedStructure = selected.structureAnalysis;
   const mergedPool = useMemo(
     () =>
       mergeFamilyPoolItems(familyPool).map((item) => {
@@ -218,6 +220,37 @@ export function App() {
               <strong>进入人工复核，确认仓位和失效位</strong>
             </div>
           </div>
+
+          <section className="structure-panel">
+            <div className="section-title compact">
+              <h2>结构分析层</h2>
+              <span>周线 · 日线 · 60 分钟</span>
+            </div>
+            <div className="structure-grid">
+              <div>
+                <span>买点观察</span>
+                <strong>{selectedStructure?.buyPointLabel ?? "无买点"}</strong>
+                <small>{selectedStructure?.levelSummary.hourly60 ?? "等待 60 分钟 K 线同步"}</small>
+              </div>
+              <div>
+                <span>中枢区间</span>
+                <strong>{formatCenterRange(selectedStructure?.centerRange)}</strong>
+                <small>{selectedStructure?.levelSummary.daily ?? "等待日线结构计算"}</small>
+              </div>
+              <div>
+                <span>风险卖点</span>
+                <strong>{selectedStructure?.sellPointLabel ?? "待计算"}</strong>
+                <small>
+                  {selectedStructure?.riskFlags[0] ??
+                    selectedStructure?.levelSummary.weekly ??
+                    "等待周线结构计算"}
+                </small>
+              </div>
+            </div>
+            <p className="structure-summary">
+              {selectedStructure?.summary ?? "结构数据尚未完整，先同步日线、周线和 60 分钟线。"}
+            </p>
+          </section>
         </section>
       </section>
     </main>
@@ -271,4 +304,11 @@ function toDisplayStock(item: FamilyPoolItem, source: SeedStock[]): SeedStock {
     };
   }
   return makePendingStock(item.ticker, item.status, item.tags);
+}
+
+function formatCenterRange(range: StructureRange | undefined): string {
+  if (!range) {
+    return "待计算";
+  }
+  return `${range.low} - ${range.high}`;
 }

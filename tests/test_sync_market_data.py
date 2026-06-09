@@ -54,6 +54,97 @@ class SyncMarketDataTest(unittest.TestCase):
             ],
         )
 
+    def test_fixture_sync_outputs_structure_analysis_from_k_lines(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_path = Path(temp_dir) / "fixture.json"
+            fixture_path.write_text(
+                json.dumps(
+                    {
+                        "688041": {
+                            "name": "海光信息",
+                            "price": 281.12,
+                            "dailyKLines": make_bars(
+                                [
+                                    20,
+                                    21,
+                                    22,
+                                    23,
+                                    24,
+                                    25,
+                                    26,
+                                    25,
+                                    24,
+                                    25,
+                                    26,
+                                    27,
+                                    28,
+                                    29,
+                                    30,
+                                    31,
+                                    32,
+                                    33,
+                                    34,
+                                    35,
+                                    36,
+                                    37,
+                                    38,
+                                    39,
+                                ]
+                            ),
+                            "weeklyKLines": make_bars([18, 19, 20, 22, 24, 26, 28, 30]),
+                            "hourly60KLines": make_bars(
+                                [
+                                    28,
+                                    29,
+                                    30,
+                                    31,
+                                    32,
+                                    31,
+                                    30,
+                                    31,
+                                    32,
+                                    33,
+                                    34,
+                                    35,
+                                    36,
+                                    35,
+                                    36,
+                                    37,
+                                    38,
+                                    39,
+                                    40,
+                                    41,
+                                ]
+                            ),
+                        }
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            snapshots = sync_market_data.sync_from_fixture(["688041"], fixture_path)
+
+        self.assertEqual(snapshots[0]["ticker"], "688041")
+        self.assertEqual(snapshots[0]["dataHealthLabel"], "行情、日线、周线、60 分钟线已更新")
+        self.assertEqual(snapshots[0]["decisionInput"]["structureSignal"], "second_buy_candidate")
+        self.assertEqual(snapshots[0]["structureAnalysis"]["buyPointLabel"], "二买候选")
+        self.assertIn("中枢", snapshots[0]["structureAnalysis"]["summary"])
+
+
+def make_bars(closes):
+    return [
+        {
+            "date": f"2026-05-{index + 1:02d}",
+            "open": close - 1,
+            "high": close + 2,
+            "low": close - 2,
+            "close": close,
+            "volume": 1000 + index,
+        }
+        for index, close in enumerate(closes)
+    ]
+
 
 if __name__ == "__main__":
     unittest.main()
