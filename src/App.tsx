@@ -39,6 +39,7 @@ export function App() {
   const [statusInput, setStatusInput] = useState<FamilyPoolStatus>("watching");
   const [tagsInput, setTagsInput] = useState("");
   const [formError, setFormError] = useState("");
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +52,9 @@ export function App() {
       const next = hydrateFamilyPool(apiItems);
       setFamilyPool(next);
       saveFamilyPoolItems(next);
+      setSelectedTicker((current) =>
+        current && next.some((stock) => stock.ticker === current) ? current : next[0]?.ticker,
+      );
     });
 
     return () => {
@@ -58,7 +62,16 @@ export function App() {
     };
   }, []);
 
-  const selected = familyPool[0];
+  const mergedPool = useMemo(
+    () =>
+      mergeFamilyPoolItems(familyPool).map((item) => {
+        const fullItem = familyPool.find((stock) => stock.ticker === item.ticker);
+        return fullItem ?? makePendingStock(item.ticker, item.status, item.tags);
+      }),
+    [familyPool],
+  );
+  const selected =
+    mergedPool.find((stock) => stock.ticker === selectedTicker) ?? mergedPool[0] ?? familyPool[0];
   const decision = deriveDecision(selected.decisionInput);
   const selectedSync = summarizeDataSync(selected.dataSync);
   const selectedStructure = selected.structureAnalysis;
@@ -68,14 +81,6 @@ export function App() {
     status: selected.status,
     structure: selectedStructure,
   });
-  const mergedPool = useMemo(
-    () =>
-      mergeFamilyPoolItems(familyPool).map((item) => {
-        const fullItem = familyPool.find((stock) => stock.ticker === item.ticker);
-        return fullItem ?? makePendingStock(item.ticker, item.status, item.tags);
-      }),
-    [familyPool],
-  );
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,6 +98,7 @@ export function App() {
         void saveFamilyPoolToApi(next);
         return next;
       });
+      setSelectedTicker(ticker);
       setTickerInput("");
       setStatusInput("watching");
       setTagsInput("");
@@ -173,7 +179,13 @@ export function App() {
               const stockDecision = deriveDecision(stock.decisionInput);
               const syncSummary = summarizeDataSync(stock.dataSync);
               return (
-                <article className="stock-card" key={stock.ticker}>
+                <button
+                  aria-label={`选择 ${stock.name} ${stock.ticker}`}
+                  className={`stock-card ${stock.ticker === selected.ticker ? "is-selected" : ""}`}
+                  key={stock.ticker}
+                  onClick={() => setSelectedTicker(stock.ticker)}
+                  type="button"
+                >
                   <div>
                     <h3>{stock.name}</h3>
                     <span>{stock.ticker}</span>
@@ -190,7 +202,7 @@ export function App() {
                       <span key={tag}>{tag}</span>
                     ))}
                   </div>
-                </article>
+                </button>
               );
             })}
           </div>

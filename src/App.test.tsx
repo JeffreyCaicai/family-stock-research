@@ -34,7 +34,7 @@ describe("App", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "加入家庭股票池" }));
 
-    expect(screen.getByText("600519 待同步")).toBeInTheDocument();
+    expect(screen.getAllByText("600519 待同步").length).toBeGreaterThan(0);
     expect(screen.getAllByText("600519").length).toBeGreaterThan(0);
     expect(screen.getAllByText("准备研究").length).toBeGreaterThan(0);
     expect(screen.getByText("白酒")).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(screen.getByText("600519 待同步")).toBeInTheDocument();
+    expect(screen.getAllByText("600519 待同步").length).toBeGreaterThan(0);
     expect(screen.getByText("4 只")).toBeInTheDocument();
   });
 
@@ -74,7 +74,7 @@ describe("App", () => {
       "http://localhost:8787/api/family-pool",
       expect.objectContaining({ method: "PUT" }),
     );
-    expect(screen.getByText("600519 待同步")).toBeInTheDocument();
+    expect(screen.getAllByText("600519 待同步").length).toBeGreaterThan(0);
   });
 
   it("loads family pool items from the local file API on startup", async () => {
@@ -116,5 +116,15 @@ describe("App", () => {
     expect(screen.getByText("触发条件")).toBeInTheDocument();
     expect(screen.getByText("失效条件")).toBeInTheDocument();
     expect(screen.getByText("仓位纪律")).toBeInTheDocument();
+  });
+
+  it("switches the analysis panel when a family stock is selected", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /选择 深南电路 002916/ }));
+
+    expect(screen.getByRole("heading", { level: 2, name: "深南电路" })).toBeInTheDocument();
+    expect(screen.getAllByText("可继续持有").length).toBeGreaterThan(0);
+    expect(screen.getByText("399.13")).toBeInTheDocument();
   });
 });
