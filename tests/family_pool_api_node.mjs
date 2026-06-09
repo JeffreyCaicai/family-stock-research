@@ -151,6 +151,13 @@ test("syncMarketDataWithPython returns a failed snapshot when the provider comma
         state: "failed",
         source: "auto",
         detail: "真实数据同步超时或失败",
+        attempts: [
+          {
+            source: "auto",
+            state: "failed",
+            detail: "真实数据同步超时或失败",
+          },
+        ],
       },
       decisionInput: {
         dataHealth: "missing",

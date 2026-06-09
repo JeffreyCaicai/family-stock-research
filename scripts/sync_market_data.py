@@ -43,7 +43,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    pool_items = read_family_pool_items(Path(args.pool))
+    pool_items = [] if args.tickers.strip() else read_family_pool_items(Path(args.pool))
     tickers = select_sync_tickers(pool_items, args.tickers)
     if args.provider == "fixture":
         snapshots = sync_from_fixture(tickers, Path(args.fixture))
@@ -168,7 +168,13 @@ def sync_from_auto(tickers: list[str]) -> list[dict[str, Any]]:
 
     baostock_snapshots = sync_from_baostock(tickers)
     if any(snapshot.get("dataSync", {}).get("state") != "failed" for snapshot in baostock_snapshots):
-        return baostock_snapshots
+        return [
+            attach_attempts(
+                snapshot,
+                attempts_for_ticker(snapshot.get("ticker", ""), akshare_snapshots, baostock_snapshots),
+            )
+            for snapshot in baostock_snapshots
+        ]
 
     return [
         merge_failed_snapshots(ticker, akshare_snapshots, baostock_snapshots)
@@ -257,12 +263,38 @@ def merge_failed_snapshots(
             detail = snapshot.get("dataSync", {}).get("detail")
             if detail:
                 details.append(detail)
-    return failed_snapshot(
+    snapshot = failed_snapshot(
         ticker,
         "auto",
         "；".join(details) if details else "所有免费数据源均同步失败",
         datetime.now().strftime("%Y-%m-%d %H:%M"),
     )
+    return attach_attempts(snapshot, attempts_for_ticker(ticker, akshare_snapshots, baostock_snapshots))
+
+
+def attach_attempts(snapshot: dict[str, Any], attempts: list[dict[str, str]]) -> dict[str, Any]:
+    snapshot["dataSync"]["attempts"] = attempts
+    return snapshot
+
+
+def attempts_for_ticker(
+    ticker: str,
+    *snapshot_groups: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    attempts: list[dict[str, str]] = []
+    for snapshots in snapshot_groups:
+        for snapshot in snapshots:
+            if snapshot.get("ticker") != ticker:
+                continue
+            sync = snapshot.get("dataSync", {})
+            attempts.append(
+                {
+                    "source": str(sync.get("source", "unknown")),
+                    "state": str(sync.get("state", "failed")),
+                    "detail": str(sync.get("detail", "")),
+                }
+            )
+    return attempts
 
 
 def failed_snapshot(

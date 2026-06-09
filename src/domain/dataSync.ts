@@ -1,9 +1,16 @@
 export type DataSyncState = "pending" | "synced" | "failed" | "sample";
 
+export type DataSourceAttempt = {
+  state: DataSyncState;
+  source: string;
+  detail: string;
+};
+
 export type DataSyncSnapshot = {
   state: DataSyncState;
   source: string;
   detail: string;
+  attempts?: DataSourceAttempt[];
   lastSyncedAt?: string;
 };
 
@@ -22,10 +29,17 @@ const stateLabels: Record<DataSyncState, string> = {
 };
 
 export function summarizeDataSync(snapshot: DataSyncSnapshot): DataSyncSummary {
+  const attempts = snapshot.attempts?.map((attempt) => attempt.source).filter(Boolean) ?? [];
   return {
     label: stateLabels[snapshot.state],
     tone: snapshot.state,
     detail: snapshot.detail,
-    meta: [snapshot.source, snapshot.lastSyncedAt].filter(Boolean).join(" · "),
+    meta: [
+      snapshot.source,
+      snapshot.lastSyncedAt,
+      attempts.length ? `尝试 ${attempts.join("、")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
   };
 }

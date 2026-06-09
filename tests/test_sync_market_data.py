@@ -66,6 +66,39 @@ class SyncMarketDataTest(unittest.TestCase):
 
         self.assertEqual(tickers, ["600519", "688041"])
 
+    def test_main_with_explicit_tickers_does_not_read_pool_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pool_path = Path(temp_dir) / "broken-family-pool.json"
+            pool_path.write_text("not valid json", encoding="utf-8")
+            fixture_path = Path(temp_dir) / "fixture.json"
+            fixture_path.write_text(
+                json.dumps({"688041": {"name": "海光信息", "price": 22}}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            output_path = Path(temp_dir) / "marketSnapshots.json"
+
+            with patch(
+                "sys.argv",
+                [
+                    "sync_market_data.py",
+                    "--provider",
+                    "fixture",
+                    "--pool",
+                    str(pool_path),
+                    "--fixture",
+                    str(fixture_path),
+                    "--tickers",
+                    "688041",
+                    "--output",
+                    str(output_path),
+                ],
+            ):
+                sync_market_data.main()
+
+            snapshots = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(snapshots[0]["ticker"], "688041")
+
     def test_fixture_sync_outputs_structure_analysis_from_k_lines(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_path = Path(temp_dir) / "fixture.json"
@@ -179,6 +212,13 @@ class SyncMarketDataTest(unittest.TestCase):
         self.assertEqual(snapshots[0]["ticker"], "688041")
         self.assertEqual(snapshots[0]["dataSync"]["source"], "BaoStock")
         self.assertEqual(snapshots[0]["price"], 35.0)
+        self.assertEqual(
+            snapshots[0]["dataSync"]["attempts"],
+            [
+                {"source": "AKShare", "state": "failed", "detail": "proxy down"},
+                {"source": "BaoStock", "state": "synced", "detail": snapshots[0]["dataSync"]["detail"]},
+            ],
+        )
 
     def test_baostock_provider_builds_partial_real_daily_snapshot(self):
         fake_baostock = make_fake_baostock(

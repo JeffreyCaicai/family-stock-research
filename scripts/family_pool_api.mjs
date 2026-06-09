@@ -178,6 +178,13 @@ function failedMarketSyncSnapshot(ticker, source) {
       state: "failed",
       source,
       detail: "真实数据同步超时或失败",
+      attempts: [
+        {
+          source,
+          state: "failed",
+          detail: "真实数据同步超时或失败",
+        },
+      ],
     },
     decisionInput: {
       dataHealth: "missing",

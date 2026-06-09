@@ -47,4 +47,23 @@ describe("summarizeDataSync", () => {
       meta: "AKShare",
     });
   });
+
+  it("summarizes provider attempts for auto sync diagnostics", () => {
+    expect(
+      summarizeDataSync({
+        state: "failed",
+        source: "auto",
+        detail: "所有免费数据源均同步失败",
+        attempts: [
+          { source: "AKShare", state: "failed", detail: "东方财富接口超时" },
+          { source: "BaoStock", state: "failed", detail: "BaoStock 登录失败" },
+        ],
+      }),
+    ).toEqual({
+      label: "同步失败",
+      tone: "failed",
+      detail: "所有免费数据源均同步失败",
+      meta: "auto · 尝试 AKShare、BaoStock",
+    });
+  });
 });
