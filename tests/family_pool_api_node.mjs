@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 import {
+  applyMarketCache,
   createFamilyPoolApiServer,
   readFamilyPool,
   syncMarketDataWithPython,
@@ -12,10 +13,12 @@ import {
 
 let server;
 let baseUrl;
+let cachePath;
 let poolPath;
 
 before(async () => {
   const dir = await mkdtemp(join(tmpdir(), "family-pool-api-"));
+  cachePath = join(dir, "market-cache.json");
   poolPath = join(dir, "family-pool.json");
   await writeFile(
     poolPath,
@@ -23,6 +26,7 @@ before(async () => {
     "utf-8",
   );
   server = createFamilyPoolApiServer({
+    cachePath,
     poolPath,
     syncMarketData: async ({ provider, ticker }) => ({
       provider,
@@ -177,4 +181,71 @@ test("syncMarketDataWithPython returns a failed snapshot when the provider comma
       structureAnalysis: null,
     },
   ]);
+});
+
+test("applyMarketCache uses cached snapshot after a provider failure", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "family-pool-cache-api-"));
+  const localCachePath = join(dir, "market-cache.json");
+
+  await applyMarketCache(
+    {
+      provider: "auto",
+      snapshots: [
+        {
+          ticker: "688041",
+          name: "海光信息",
+          price: 281.12,
+          dataSync: {
+            state: "synced",
+            source: "AKShare",
+            detail: "测试同步完成",
+          },
+        },
+      ],
+    },
+    localCachePath,
+  );
+
+  assert.deepEqual(
+    await applyMarketCache(
+      {
+        provider: "auto",
+        snapshots: [
+          {
+            ticker: "688041",
+            dataHealthLabel: "auto 真实数据同步失败，不能下操作结论",
+            dataSync: {
+              state: "failed",
+              source: "auto",
+              detail: "真实数据同步超时或失败",
+            },
+            decisionInput: {
+              dataHealth: "missing",
+              riskFlags: ["真实数据同步失败"],
+              structureSignal: "none",
+              trend: "range",
+            },
+            structureAnalysis: null,
+          },
+        ],
+      },
+      localCachePath,
+    ),
+    {
+      provider: "auto",
+      snapshots: [
+        {
+          ticker: "688041",
+          name: "海光信息",
+          price: 281.12,
+          dataHealthLabel: "使用缓存行情，真实数据源本次同步失败",
+          dataSync: {
+            state: "synced",
+            source: "cache",
+            detail: "真实数据源本次同步失败，暂用最近一次可信快照",
+          },
+        },
+      ],
+    },
+  );
 });

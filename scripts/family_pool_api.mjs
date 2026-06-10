@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const DEFAULT_POOL_PATH = resolve(ROOT, "data", "family-pool.json");
+export const DEFAULT_MARKET_CACHE_PATH = resolve(ROOT, "data", "market-cache.json");
 export const DEFAULT_PORT = 8787;
 const SYNC_SCRIPT_PATH = resolve(ROOT, "scripts", "sync_market_data.py");
 const execFileAsync = promisify(execFile);
@@ -26,6 +27,7 @@ export async function writeFamilyPool(items, poolPath = DEFAULT_POOL_PATH) {
 }
 
 export function createFamilyPoolApiServer({
+  cachePath = DEFAULT_MARKET_CACHE_PATH,
   poolPath = DEFAULT_POOL_PATH,
   syncMarketData = syncMarketDataWithPython,
 } = {}) {
@@ -70,14 +72,11 @@ export function createFamilyPoolApiServer({
           return;
         }
 
-        writeJson(
-          response,
-          200,
-          await syncMarketData({
-            provider: normalizeProvider(String(parsed.provider ?? "auto")),
-            ticker,
-          }),
-        );
+        const syncResult = await syncMarketData({
+          provider: normalizeProvider(String(parsed.provider ?? "auto")),
+          ticker,
+        });
+        writeJson(response, 200, await applyMarketCache(syncResult, cachePath));
         return;
       }
 
@@ -88,6 +87,49 @@ export function createFamilyPoolApiServer({
       });
     }
   });
+}
+
+export async function applyMarketCache(syncResult, cachePath = DEFAULT_MARKET_CACHE_PATH) {
+  const cache = await readMarketCache(cachePath);
+  const snapshots = syncResult.snapshots.map((snapshot) => {
+    if (snapshot?.dataSync?.state === "synced" && snapshot.dataSync.source !== "cache") {
+      cache[snapshot.ticker] = snapshot;
+      return snapshot;
+    }
+
+    const cached = cache[snapshot.ticker];
+    if (snapshot?.dataSync?.state === "failed" && cached) {
+      return {
+        ...cached,
+        dataHealthLabel: "使用缓存行情，真实数据源本次同步失败",
+        dataSync: {
+          state: "synced",
+          source: "cache",
+          detail: "真实数据源本次同步失败，暂用最近一次可信快照",
+        },
+      };
+    }
+
+    return snapshot;
+  });
+
+  await writeMarketCache(cachePath, cache);
+  return {
+    ...syncResult,
+    snapshots,
+  };
+}
+
+async function readMarketCache(cachePath) {
+  try {
+    return JSON.parse(await readFile(cachePath, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+async function writeMarketCache(cachePath, cache) {
+  await writeFile(cachePath, `${JSON.stringify(cache, null, 2)}\n`, "utf-8");
 }
 
 export async function syncMarketDataWithPython({

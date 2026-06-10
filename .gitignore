@@ -5,3 +5,4 @@ dist/
 .env.local
 *.log
 coverage/
+data/market-cache.json
