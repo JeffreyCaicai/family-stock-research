@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeDataSync } from "./dataSync";
+import { summarizeDataReliability, summarizeDataSync } from "./dataSync";
 
 describe("summarizeDataSync", () => {
   it("describes a pending sync as waiting for market data", () => {
@@ -64,6 +64,54 @@ describe("summarizeDataSync", () => {
       tone: "failed",
       detail: "所有免费数据源均同步失败",
       meta: "auto · 尝试 AKShare、BaoStock",
+    });
+  });
+});
+
+describe("summarizeDataReliability", () => {
+  it("marks a normal synced snapshot as reliable real data", () => {
+    expect(
+      summarizeDataReliability({
+        state: "synced",
+        source: "AKShare",
+        lastSyncedAt: "2026-06-10 09:35",
+        detail: "行情、日线、周线、60 分钟线已更新",
+      }),
+    ).toEqual({
+      label: "真实同步",
+      tone: "synced",
+      evidence: "AKShare · 2026-06-10 09:35",
+      guidance: "可用于当前分析，仍需结合人工复核和仓位纪律。",
+    });
+  });
+
+  it("marks a cached snapshot as a fallback that needs review", () => {
+    expect(
+      summarizeDataReliability({
+        state: "synced",
+        source: "cache",
+        detail: "真实数据源本次同步失败，暂用最近一次可信快照",
+      }),
+    ).toEqual({
+      label: "缓存回退",
+      tone: "sample",
+      evidence: "最近一次可信快照",
+      guidance: "可参考结构和位置，但不能当作最新盘中行情，需要下次同步确认。",
+    });
+  });
+
+  it("marks a failed snapshot as unusable for operation decisions", () => {
+    expect(
+      summarizeDataReliability({
+        state: "failed",
+        source: "auto",
+        detail: "所有免费数据源均同步失败",
+      }),
+    ).toEqual({
+      label: "数据不可用",
+      tone: "failed",
+      evidence: "auto",
+      guidance: "不能生成买卖动作，只能进入人工排查和重新同步。",
     });
   });
 });

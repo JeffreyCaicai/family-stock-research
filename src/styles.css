@@ -259,7 +259,8 @@ select {
 }
 
 .stock-card p,
-.decision-card p {
+.decision-card p,
+.reliability-card p {
   line-height: 1.55;
   margin: 0;
 }
@@ -290,12 +291,47 @@ select {
   font-size: 24px;
 }
 
+.reliability-card {
+  align-items: center;
+  border: 1px solid #d9e0ea;
+  border-left: 5px solid #155eef;
+  border-radius: 10px;
+  display: grid;
+  gap: 8px 14px;
+  grid-template-columns: 92px minmax(120px, 0.45fr) minmax(160px, 0.55fr) minmax(0, 1.4fr);
+  padding: 13px 16px;
+}
+
+.reliability-card span,
+.reliability-card small {
+  color: #657184;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.reliability-card strong {
+  font-size: 18px;
+}
+
 .tone-risk {
   border-left-color: #b42318;
 }
 
 .tone-opportunity {
   border-left-color: #087443;
+}
+
+.reliability-card.tone-synced {
+  border-left-color: #087443;
+}
+
+.reliability-card.tone-sample,
+.reliability-card.tone-pending {
+  border-left-color: #f59e0b;
+}
+
+.reliability-card.tone-failed {
+  border-left-color: #b42318;
 }
 
 .metric-grid {
@@ -429,6 +465,7 @@ select {
   .workspace,
   .metric-grid,
   .operation-grid,
+  .reliability-card,
   .structure-grid,
   .pool-form {
     grid-template-columns: 1fr;

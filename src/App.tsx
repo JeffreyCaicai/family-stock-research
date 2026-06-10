@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { summarizeDataSync } from "./domain/dataSync";
+import { summarizeDataReliability, summarizeDataSync } from "./domain/dataSync";
 import { deriveDecision } from "./domain/decision";
 import type { FamilyPoolStatus } from "./domain/familyPool";
 import { deriveOperationPlan } from "./domain/operationPlan";
@@ -80,6 +80,7 @@ export function App() {
     mergedPool.find((stock) => stock.ticker === selectedTicker) ?? mergedPool[0] ?? familyPool[0];
   const decision = deriveDecision(selected.decisionInput);
   const selectedSync = summarizeDataSync(selected.dataSync);
+  const selectedReliability = summarizeDataReliability(selected.dataSync);
   const selectedStructure = selected.structureAnalysis;
   const operationPlan = deriveOperationPlan({
     decision,
@@ -253,6 +254,13 @@ export function App() {
             <span>当前结论</span>
             <strong>{decision.label}</strong>
             <p>{decision.reason}</p>
+          </div>
+
+          <div className={`reliability-card tone-${selectedReliability.tone}`}>
+            <span>行情依据</span>
+            <strong>{selectedReliability.label}</strong>
+            <small>{selectedReliability.evidence}</small>
+            <p>{selectedReliability.guidance}</p>
           </div>
 
           <div className="metric-grid">

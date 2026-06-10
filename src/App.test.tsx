@@ -195,4 +195,39 @@ describe("App", () => {
     expect(screen.queryByText("274.06")).not.toBeInTheDocument();
     expect(screen.getByText("auto 真实数据同步失败，不能下操作结论")).toBeInTheDocument();
   });
+
+  it("shows when the selected analysis is based on cached market data", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("family pool api offline"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          snapshots: [
+            {
+              ticker: "688041",
+              name: "海光信息",
+              price: 281.12,
+              dataHealthLabel: "使用缓存行情，真实数据源本次同步失败",
+              dataSync: {
+                state: "synced",
+                source: "cache",
+                detail: "真实数据源本次同步失败，暂用最近一次可信快照",
+              },
+            },
+          ],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "刷新分析" }));
+
+    expect(await screen.findByText("行情依据")).toBeInTheDocument();
+    expect(screen.getByText("缓存回退")).toBeInTheDocument();
+    expect(screen.getByText("最近一次可信快照")).toBeInTheDocument();
+    expect(
+      screen.getByText("可参考结构和位置，但不能当作最新盘中行情，需要下次同步确认。"),
+    ).toBeInTheDocument();
+  });
 });
