@@ -98,6 +98,7 @@ describe("applyMarketSnapshots", () => {
     expect(stock.dataSync.state).toBe("failed");
     expect(stock.dataHealthLabel).toBe("AKShare 真实数据同步失败");
     expect(stock.decisionInput.dataHealth).toBe("missing");
+    expect(stock.price).toBe(0);
     expect(stock.structureAnalysis).toBeUndefined();
   });
 });

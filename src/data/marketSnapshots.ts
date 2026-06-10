@@ -35,7 +35,11 @@ export function applyMarketSnapshots(
       dataSync: snapshot.dataSync,
       decisionInput: snapshot.decisionInput ?? stock.decisionInput,
       name: snapshot.name ?? stock.name,
-      price: snapshot.price ?? stock.price,
+      price:
+        snapshot.price ??
+        (snapshot.dataSync.state === "failed" || snapshot.dataSync.state === "pending"
+          ? 0
+          : stock.price),
       structureAnalysis:
         "structureAnalysis" in snapshot
           ? (snapshot.structureAnalysis ?? undefined)

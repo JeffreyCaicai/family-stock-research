@@ -158,4 +158,41 @@ describe("App", () => {
     expect(await screen.findByText("281.12")).toBeInTheDocument();
     expect(screen.getByText("行情、日线、周线、60 分钟线已更新")).toBeInTheDocument();
   });
+
+  it("does not show stale sample price after a real data sync failure", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("family pool api offline"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          snapshots: [
+            {
+              ticker: "688041",
+              dataHealthLabel: "auto 真实数据同步失败，不能下操作结论",
+              dataSync: {
+                state: "failed",
+                source: "auto",
+                detail: "真实数据同步超时或失败",
+              },
+              decisionInput: {
+                dataHealth: "missing",
+                riskFlags: ["真实数据同步失败"],
+                structureSignal: "none",
+                trend: "range",
+              },
+              structureAnalysis: null,
+            },
+          ],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "刷新分析" }));
+
+    expect(await screen.findAllByText("待同步")).not.toHaveLength(0);
+    expect(screen.queryByText("274.06")).not.toBeInTheDocument();
+    expect(screen.getByText("auto 真实数据同步失败，不能下操作结论")).toBeInTheDocument();
+  });
 });

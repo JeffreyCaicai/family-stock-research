@@ -258,7 +258,7 @@ export function App() {
           <div className="metric-grid">
             <div>
               <span>现价</span>
-              <strong>{selected.price.toFixed(2)}</strong>
+              <strong>{formatPrice(selected.price)}</strong>
             </div>
             <div>
               <span>数据健康</span>
@@ -395,4 +395,8 @@ function formatCenterRange(range: StructureRange | undefined): string {
     return "待计算";
   }
   return `${range.low} - ${range.high}`;
+}
+
+function formatPrice(price: number): string {
+  return price > 0 ? price.toFixed(2) : "待同步";
 }
